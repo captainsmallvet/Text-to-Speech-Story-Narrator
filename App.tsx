@@ -4,13 +4,15 @@ import ScriptEditor from './components/ScriptEditor';
 import VoiceSettings from './components/VoiceSettings';
 import VoiceCloneModal from './components/VoiceCloneModal';
 import VoiceLibraryModal from './components/VoiceLibraryModal';
+import Modal from './components/Modal';
 import { generateSingleLineSpeech, generateMultiLineSpeech, generateSeparateSpeakerSpeech, performTextReasoning } from './services/geminiService';
 import { playAudio, downloadAudio, setOnPlaybackStateChange, stopAudio } from './utils/audio';
 import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS } from './constants';
+import { CopyIcon } from './components/icons';
 
-const APP_VERSION = "v1.5.0 (AI Reasoning Edition)";
-const LAST_UPDATED = "Nov 20, 2025 14:00";
+const APP_VERSION = "v1.5.2 (UI Feedback)";
+const LAST_UPDATED = "Nov 20, 2025 14:30";
 const DEFAULT_SEED = 949222;
 
 const App: React.FC = () => {
@@ -19,7 +21,8 @@ const App: React.FC = () => {
   const [speakerConfigs, setSpeakerConfigs] = useState<Map<string, SpeakerConfig>>(new Map());
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
+  const [aiLoadingAction, setAiLoadingAction] = useState<'idea' | 'polish' | 'translate' | 'caption' | null>(null);
+  const [aiResultModal, setAiResultModal] = useState<{ title: string; content: string } | null>(null);
   const [generatedStoryAudio, setGeneratedStoryAudio] = useState<Blob | null>(null);
   const [generatedSpeakerAudio, setGeneratedSpeakerAudio] = useState<Map<string, Blob>>(new Map());
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -31,8 +34,9 @@ const App: React.FC = () => {
   const [isCloneModalOpen, setIsCloneModalOpen] = useState<boolean>(false);
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState<boolean>(false);
   const [activeSpeakerForClone, setActiveSpeakerForClone] = useState<string | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
   
-  // New Global Settings
+  // Global Settings
   const [textModelId, setTextModelId] = useState<string>(TEXT_MODELS[0].id);
 
   const allVoices = useMemo(() => [...AVAILABLE_VOICES, ...customVoices], [customVoices]);
@@ -291,7 +295,7 @@ const App: React.FC = () => {
           return;
       }
 
-      setIsAiLoading(true);
+      setAiLoadingAction(action);
       try {
           let prompt = "";
           let systemInstruction = "You are a specialized AI assistant for Buddhist Dhamma story narrators. Keep the tone respectful, wise, and serene.";
@@ -307,26 +311,31 @@ const App: React.FC = () => {
                   prompt = `Translate the following script to Thai, maintaining the 'Speaker: Text' format. If it is already in Thai, translate it to English. Script:\n${scriptText}`;
                   break;
               case 'caption':
-                  prompt = `Generate a short, engaging summary or caption for this story. Script:\n${scriptText}`;
+                  prompt = `Generate a short, engaging summary or caption for this story. Make it catchy and emotional for social media. Script:\n${scriptText}`;
                   break;
           }
 
           const result = await performTextReasoning(prompt, textModelId, systemInstruction);
+          const finalResult = result.trim();
           
+          if (!finalResult) {
+              throw new Error("AI returned an empty response. Please try again.");
+          }
+
           if (action === 'caption') {
-              alert(`AI Caption:\n\n${result}`);
+              setAiResultModal({ title: "AI Generated Caption", content: finalResult });
           } else if (action === 'idea') {
-              setScriptText(prev => prev + (prev.trim() ? "\n\n" : "") + result);
+              setScriptText(prev => prev + (prev.trim() ? "\n\n" : "") + finalResult);
               showToast("AI Idea added!");
           } else {
-              setScriptText(result);
+              setScriptText(finalResult);
               showToast(`AI ${action.charAt(0).toUpperCase() + action.slice(1)} complete!`);
           }
       } catch (error: any) {
           console.error(error);
           alert(`AI Tool Error: ${error.message}`);
       } finally {
-          setIsAiLoading(false);
+          setAiLoadingAction(null);
       }
   };
   
@@ -339,6 +348,18 @@ const App: React.FC = () => {
     const audioBlob = generatedSpeakerAudio.get(speakerName);
     if (!audioBlob) return;
     downloadAudio(audioBlob, `TTS_Narrator_${speakerName}_${Date.now()}`);
+  };
+
+  const handleCopyAiResult = async () => {
+    if (aiResultModal) {
+      try {
+        await navigator.clipboard.writeText(aiResultModal.content);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+      } catch (err) {
+        console.error('Failed to copy text: ', err);
+      }
+    }
   };
 
   return (
@@ -381,7 +402,7 @@ const App: React.FC = () => {
             onClear={() => setScriptText('')}
             error={parsingError}
             onAiAction={handleAiAction}
-            isAiLoading={isAiLoading}
+            aiLoadingAction={aiLoadingAction}
           />
           <VoiceSettings
             speakerConfigs={speakerConfigs}
@@ -448,6 +469,32 @@ const App: React.FC = () => {
                 if (blob) playAudio(blob);
             }}
         />
+      )}
+      {aiResultModal && (
+        <Modal title={aiResultModal.title} onClose={() => setAiResultModal(null)}>
+          <div className="space-y-4">
+            <div className="bg-gray-900/80 p-4 rounded-lg border border-gray-700 max-h-64 overflow-y-auto">
+              <p className="text-gray-200 leading-relaxed whitespace-pre-wrap">{aiResultModal.content}</p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleCopyAiResult}
+                className={`flex items-center gap-2 font-bold py-2 px-4 rounded-lg transition-all ${
+                  copySuccess ? "bg-teal-600 text-white" : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                }`}
+              >
+                <CopyIcon className="w-5 h-5" />
+                {copySuccess ? "Copied!" : "Copy Caption"}
+              </button>
+              <button
+                onClick={() => setAiResultModal(null)}
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
