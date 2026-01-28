@@ -1,0 +1,47 @@
+
+import type { Voice, TextModel } from './types';
+
+export const AVAILABLE_VOICES: Voice[] = [
+  { name: 'Kore (Female)', id: 'Kore' },
+  { name: 'Puck (Male)', id: 'Puck' },
+  { name: 'Charon (Male, Deep)', id: 'Charon' },
+  { name: 'Fenrir (Male, Raspy)', id: 'Fenrir' },
+  { name: 'Zephyr (Female, Soft)', id: 'Zephyr' },
+  { name: 'Enceladus (Male)', id: 'Enceladus' },
+];
+
+export const TEXT_MODELS: TextModel[] = [
+  { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash (Fast)', description: 'Best for simple logic and quick tasks' },
+  { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro (Smart)', description: 'Best for complex reasoning and creative writing' },
+  { id: 'gemini-flash-latest', name: 'Gemini Flash Latest', description: 'Up-to-date version of the Flash model' },
+  { id: 'gemini-flash-lite-latest', name: 'Gemini Flash Lite', description: 'Lightweight and extremely fast' },
+];
+
+export const EMOTIONS = [
+  { value: 'none', label: 'Default / None' },
+  // General Emotions
+  { value: 'happily', label: 'Happy' },
+  { value: 'cheerfully', label: 'Cheerful' },
+  { value: 'calmly', label: 'Calm' },
+  { value: 'seriously', label: 'Serious' },
+  
+  // Special Dhamma/Spiritual Narration Styles
+  { value: 'with a serene, wise tone, articulating every word clearly and peacefully', label: 'Dhamma: Serene & Wise' },
+  { value: 'with deep kindness and warmth, speaking gently but engagingly', label: 'Dhamma: Compassionate' },
+  { value: 'slowly and mindfully, with a steady, relaxed pace that is very easy to follow', label: 'Dhamma: Mindful & Steady' },
+  { value: 'with a light, peaceful energy and gentle clarity to keep the listener engaged', label: 'Dhamma: Gentle Insight' },
+  { value: 'patiently and soothingly, like a wise teacher explaining complex truths simply', label: 'Dhamma: Patient Teacher' },
+];
+
+export const SPEEDS = [
+  { value: 'normal', label: 'Normal', adverb: '' },
+  { value: 'slow', label: 'Slow', adverb: 'slowly' },
+  { value: 'slightly_slow', label: 'Comfortable', adverb: 'at a comfortable, relaxed pace' },
+  { value: 'slightly_fast', label: 'Slightly Fast', adverb: 'somewhat quickly' },
+];
+
+export const EXAMPLE_SCRIPT = `Narrator: Welcome to this session on the path to inner peace.
+Speaker 1: Today, we will explore the concept of Mindfulness, or Sati.
+Speaker 2: Is mindfulness just about sitting still?
+Speaker 1: Not at all. It is about being fully present in every moment, with a heart full of kindness.
+Narrator: Take a deep breath, relax your shoulders, and let the wisdom of the Dhamma wash over you.`;
