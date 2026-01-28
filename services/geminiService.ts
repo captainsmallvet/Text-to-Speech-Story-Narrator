@@ -3,7 +3,13 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import type { DialogueLine, SpeakerConfig } from '../types';
 import { decode, createWavBlob, createSilentAudio } from '../utils/audio';
 
-const getAi = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+// ลบของเก่า: const getAi = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+// วางของใหม่นี้ลงไปแทน:
+const getAi = () => {
+  const savedKey = localStorage.getItem('gemini_api_key');
+    const apiKey = savedKey || (window as any).process?.env?.API_KEY || "";
+      return new GoogleGenAI({ apiKey });
+      };
 
 // Helper to safely split text into chunks that fit within the limit
 const splitTextSafely = (text: string, maxLength: number): string[] => {
