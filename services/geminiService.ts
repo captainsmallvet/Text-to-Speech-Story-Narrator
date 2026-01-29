@@ -48,7 +48,8 @@ const callGeminiTTS = async (
     seed?: number, 
     attempt: number = 1,
     onStatusUpdate?: (msg: string) => void,
-    checkAborted?: () => boolean
+    checkAborted?: () => boolean,
+    progressLabel: string = "" // Added to preserve context during retries
 ): Promise<Uint8Array | null> => {
     if (checkAborted && checkAborted()) throw new Error("USER_ABORTED");
 
@@ -73,25 +74,39 @@ const callGeminiTTS = async (
         return null;
     } catch (error: any) {
         const errorMsg = error.message || "";
+        
+        // Handle Rate Limiting (429)
         if (errorMsg.includes("RESOURCE_EXHAUSTED") || errorMsg.includes("429")) {
             let waitSeconds = 60;
             const match = errorMsg.match(/retry in ([\d.]+)s/i);
             if (match && match[1]) waitSeconds = Math.ceil(parseFloat(match[1])) + 2;
+            
             if (waitSeconds > 600) {
                 const hours = (waitSeconds / 3600).toFixed(1);
                 throw new Error(`DAILY_QUOTA_EXCEEDED|${hours}`);
             }
+
+            // Countdown while showing current progress context
             for (let i = waitSeconds; i > 0; i--) {
                 if (checkAborted && checkAborted()) throw new Error("USER_ABORTED");
-                if (onStatusUpdate) onStatusUpdate(`คิวเต็ม (Rate Limit)... รอเริ่มใหม่ใน ${i} วินาที`);
+                if (onStatusUpdate) {
+                    onStatusUpdate(`${progressLabel}\n\n⚠️ คิวเต็ม (Rate Limit)... รอเริ่มใหม่ใน ${i} วินาที\n(คุณสามารถกดหยุดเพื่อบันทึกงานส่วนที่เสร็จแล้วได้ทันที)`);
+                }
                 await delay(1000);
             }
-            return callGeminiTTS(text, voice, seed, attempt, onStatusUpdate, checkAborted);
+            
+            if (onStatusUpdate) onStatusUpdate(`${progressLabel}\n\n🔄 กำลังส่งข้อมูลรอบใหม่...`);
+            return callGeminiTTS(text, voice, seed, attempt, onStatusUpdate, checkAborted, progressLabel);
         }
+
+        // Handle Internal Server Errors (500)
         if (attempt <= 3 && (errorMsg.includes("500") || errorMsg.includes("Internal Error"))) {
+            const retryMsg = `${progressLabel}\n\n⚠️ Server ขัดข้อง... กำลังลองใหม่รอบที่ ${attempt}/3`;
+            if (onStatusUpdate) onStatusUpdate(retryMsg);
             await delay(attempt * 2000);
-            return callGeminiTTS(text, voice, seed, attempt + 1, onStatusUpdate, checkAborted);
+            return callGeminiTTS(text, voice, seed, attempt + 1, onStatusUpdate, checkAborted, progressLabel);
         }
+
         throw error;
     }
 };
@@ -123,14 +138,16 @@ export const generateMultiLineSpeech = async (
         const config = speakerConfigs.get(speaker);
         if (config) {
             const percent = Math.round((processedChars / totalChars) * 100);
-            const snippet = text.length > 40 ? text.substring(0, 40) + "..." : text;
+            const snippet = text.length > 50 ? text.substring(0, 50) + "..." : text;
+            
+            const progressLabel = `✅ งานที่เสร็จแล้ว: ${percent}%\n🔊 กำลังพากย์: ${speaker}\n📄 ข้อความถัดไป: "${snippet}"`;
             
             if (onStatusUpdate) {
-                onStatusUpdate(`[${percent}%] พากย์เสียง: ${speaker}\nข้อความ: "${snippet}"`);
+                onStatusUpdate(progressLabel);
             }
             
             const textToSpeak = `${config.promptPrefix} ${text}`.trim();
-            const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, 1, onStatusUpdate, checkAborted);
+            const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, 1, onStatusUpdate, checkAborted, progressLabel);
             if (pcm) {
                 audioChunks.push(pcm);
                 processedChars += text.length;
@@ -198,10 +215,13 @@ export const generateSeparateSpeakerSpeech = async (
 
       const processBatch = async (text: string) => {
           if (!text.trim()) return;
-          const snippet = text.length > 30 ? text.substring(0, 30) + "..." : text;
-          if (onStatusUpdate) onStatusUpdate(`สร้างไฟล์แยก: ${speaker}\nเตรียมพากย์: "${snippet}"`);
+          const snippet = text.length > 50 ? text.substring(0, 50) + "..." : text;
+          const progressLabel = `📂 สร้างไฟล์แยก: ${speaker}\n📄 ข้อความถัดไป: "${snippet}"`;
+          
+          if (onStatusUpdate) onStatusUpdate(progressLabel);
+          
           const textToSpeak = `${config.promptPrefix} ${text}`.trim();
-          const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, 1, onStatusUpdate, checkAborted);
+          const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, 1, onStatusUpdate, checkAborted, progressLabel);
           if (pcm) {
               audioChunks.push(pcm);
               await delay(300);
