@@ -10,8 +10,8 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.7.0 (Custom Batch Size)";
-const LAST_UPDATED = "Nov 20, 2025 18:00";
+const APP_VERSION = "v1.7.1 (Status Copy Support)";
+const LAST_UPDATED = "Nov 20, 2025 18:30";
 const DEFAULT_SEED = 949222;
 
 const App: React.FC = () => {
@@ -56,6 +56,7 @@ const App: React.FC = () => {
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState<boolean>(false);
   const [activeSpeakerForClone, setActiveSpeakerForClone] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [statusCopySuccess, setStatusCopySuccess] = useState(false);
   const [textModelId, setTextModelId] = useState<string>(TEXT_MODELS[0].id);
   const [maxCharsPerBatch, setMaxCharsPerBatch] = useState<number>(2500);
 
@@ -267,6 +268,14 @@ const App: React.FC = () => {
     } catch (err) { console.error(err); }
   };
 
+  const handleCopyStatus = async () => {
+    try {
+      await navigator.clipboard.writeText(generationStatus);
+      setStatusCopySuccess(true);
+      setTimeout(() => setStatusCopySuccess(false), 2000);
+    } catch (err) { console.error(err); }
+  };
+
   return (
     <div className="min-h-screen bg-gray-950 text-white p-4 lg:p-8 font-sans">
       <div className="max-w-7xl mx-auto">
@@ -338,10 +347,25 @@ const App: React.FC = () => {
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-xl font-bold text-white">ระบบกำลังประมวลผลเสียง</h3>
-                    <div className="bg-black/40 rounded-lg p-4 border border-gray-800 text-left min-h-[100px] flex flex-col justify-center">
-                        <p className="text-emerald-400 font-mono text-sm whitespace-pre-line leading-relaxed">
+                    <div className="bg-black/40 rounded-lg p-4 border border-gray-800 text-left min-h-[120px] relative group">
+                        <p className="text-emerald-400 font-mono text-sm whitespace-pre-line leading-relaxed pr-10">
                             {generationStatus || "กำลังเตรียมพากย์เสียง..."}
                         </p>
+                        <button
+                          onClick={handleCopyStatus}
+                          className={`absolute top-2 right-2 p-2 rounded-lg transition-all border ${
+                            statusCopySuccess 
+                            ? "bg-emerald-600 text-white border-emerald-400" 
+                            : "bg-gray-800/80 text-gray-400 border-gray-700 hover:text-emerald-400 hover:border-emerald-500"
+                          }`}
+                          title="คัดลอกสถานะปัจจุบัน"
+                        >
+                          {statusCopySuccess ? (
+                            <span className="text-[10px] font-bold">Copied!</span>
+                          ) : (
+                            <CopyIcon className="w-4 h-4" />
+                          )}
+                        </button>
                     </div>
                   </div>
                   <p className="text-gray-400 text-xs leading-relaxed">
