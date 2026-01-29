@@ -9,7 +9,7 @@ const getAi = () => {
   return new GoogleGenAI({ apiKey });
 };
 
-// Helper: Sleep function to prevent rate limiting
+// Helper: Sleep function
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Helper: Safely split text into smaller chunks
@@ -28,7 +28,6 @@ const splitTextSafely = (text: string, maxLength: number): string[] => {
     const searchArea = remainingText.substring(0, maxLength);
     let cutIndex = -1;
 
-    // Prioritize sentence endings
     const sentenceEndMatch = searchArea.match(/[.!?]["']?(?=\s|$)/g);
     if (sentenceEndMatch) {
         const lastPunctuation = searchArea.lastIndexOf(sentenceEndMatch[sentenceEndMatch.length - 1]);
@@ -37,7 +36,6 @@ const splitTextSafely = (text: string, maxLength: number): string[] => {
         }
     }
 
-    // Fallback to clauses
     if (cutIndex === -1) {
          const clauseEndMatch = searchArea.match(/[,;:]["']?(?=\s|$)/g);
          if (clauseEndMatch) {
@@ -48,12 +46,10 @@ const splitTextSafely = (text: string, maxLength: number): string[] => {
          }
     }
 
-    // Fallback to spaces
     if (cutIndex === -1) {
       cutIndex = searchArea.lastIndexOf(' ');
     }
 
-    // Hard cut if no spaces (very long word)
     if (cutIndex === -1 || cutIndex === 0) {
       cutIndex = maxLength;
     }
@@ -65,8 +61,14 @@ const splitTextSafely = (text: string, maxLength: number): string[] => {
   return chunks;
 };
 
-// Internal function to call API with Retry Logic
-const callGeminiTTS = async (text: string, voice: string, seed?: number, attempt: number = 1): Promise<Uint8Array | null> => {
+// Enhanced Internal function with Smart Quota Handling
+const callGeminiTTS = async (
+    text: string, 
+    voice: string, 
+    seed?: number, 
+    attempt: number = 1,
+    onStatusUpdate?: (msg: string) => void
+): Promise<Uint8Array | null> => {
     const ai = getAi();
     try {
         const response = await ai.models.generateContent({
@@ -89,27 +91,39 @@ const callGeminiTTS = async (text: string, voice: string, seed?: number, attempt
         }
         return null;
     } catch (error: any) {
-        // Handle 500 Internal Error or 429 Rate Limit by retrying
-        if (attempt <= 3) {
-            console.warn(`Attempt ${attempt} failed. Retrying in ${attempt * 1000}ms... Error: ${error.message}`);
-            await delay(attempt * 1000); // Exponential backoff: 1s, 2s, 3s
-            return callGeminiTTS(text, voice, seed, attempt + 1);
+        const errorMsg = error.message || "";
+        
+        // Handle RESOURCE_EXHAUSTED (Quota Exceeded)
+        if (errorMsg.includes("RESOURCE_EXHAUSTED") || errorMsg.includes("429")) {
+            // Extract wait time if possible, default to 60s for safety in free tier
+            let waitTime = 60000;
+            const match = errorMsg.match(/retry in ([\d.]+)s/i);
+            if (match && match[1]) {
+                waitTime = (parseFloat(match[1]) + 2) * 1000; // Add 2s buffer
+            }
+            
+            if (onStatusUpdate) {
+                onStatusUpdate(`ติดขีดจำกัดความถี่ (Quota Limit)... กำลังรอ ${Math.ceil(waitTime/1000)} วินาที`);
+            }
+            
+            console.warn(`Quota exhausted. Waiting ${waitTime}ms...`);
+            await delay(waitTime);
+            return callGeminiTTS(text, voice, seed, attempt, onStatusUpdate);
         }
-        console.error("Final API Error after retries:", error);
-        throw error; // Re-throw if all retries fail
+
+        // Handle Internal Error 500 with normal retry
+        if (attempt <= 3 && (errorMsg.includes("500") || errorMsg.includes("Internal Error"))) {
+            if (onStatusUpdate) onStatusUpdate(`เกิดข้อผิดพลาดที่ Server... กำลังลองใหม่รอบที่ ${attempt}`);
+            await delay(attempt * 2000);
+            return callGeminiTTS(text, voice, seed, attempt + 1, onStatusUpdate);
+        }
+
+        throw error;
     }
 };
 
-// Generates raw PCM data (Uint8Array)
-export const generateRawAudio = async (text: string, voice: string, seed?: number): Promise<Uint8Array | null> => {
-  if (!text || !text.trim()) return null;
-  // Add a small delay before every request to avoid "Too Many Requests" when looping tight
-  await delay(100); 
-  return await callGeminiTTS(text, voice, seed);
-};
-
 export const generateSingleLineSpeech = async (text: string, voice: string, seed?: number): Promise<Blob | null> => {
-    const pcmData = await generateRawAudio(text, voice, seed);
+    const pcmData = await callGeminiTTS(text, voice, seed);
     if (pcmData) {
         return createWavBlob([pcmData]);
     }
@@ -118,32 +132,38 @@ export const generateSingleLineSpeech = async (text: string, voice: string, seed
 
 export const generateMultiLineSpeech = async (
   dialogueLines: DialogueLine[],
-  speakerConfigs: Map<string, SpeakerConfig>
+  speakerConfigs: Map<string, SpeakerConfig>,
+  onStatusUpdate?: (msg: string) => void
 ): Promise<Blob | null> => {
   
   if (dialogueLines.length === 0) return null;
   
-  // Reduced from 1800 to 1000 to prevent 500 Internal Errors on complex sentences
-  const MAX_BATCH_CHARS = 1000; 
+  // Increased to 2500 to stay under 10 Requests Per Minute (RPM) for long stories
+  const MAX_BATCH_CHARS = 2500; 
 
   try {
     const audioChunks: Uint8Array[] = [];
     let currentSpeaker: string | null = null;
     let currentBatchText: string = "";
+    let processedChars = 0;
+    const totalChars = dialogueLines.reduce((acc, l) => acc + l.text.length, 0);
     
     const processBatch = async (text: string, speaker: string) => {
         if (!speaker || !text.trim()) return;
         
         const config = speakerConfigs.get(speaker);
         if (config) {
+            if (onStatusUpdate) {
+                const percent = Math.round((processedChars / totalChars) * 100);
+                onStatusUpdate(`กำลังสร้างเสียง: ${speaker} (${percent}%)`);
+            }
+            
             const textToSpeak = `${config.promptPrefix} ${text}`.trim();
-            // Critical: Wait for the chunk to be generated before proceeding (serial processing)
-            // Parallel processing causes 500 errors on long scripts.
-            const pcm = await generateRawAudio(textToSpeak, config.voice, config.seed);
+            const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, 1, onStatusUpdate);
             if (pcm) {
                 audioChunks.push(pcm);
-                // Force a small delay between heavy batches to let the server breathe
-                await delay(300);
+                processedChars += text.length;
+                await delay(500); // Small gap for stability
             }
         }
     };
@@ -163,36 +183,29 @@ export const generateMultiLineSpeech = async (
         if (combinedText.length <= MAX_BATCH_CHARS) {
             currentBatchText = combinedText;
         } else {
-            // If adding this line exceeds the limit, process the current batch first
             if (currentBatchText) {
                 await processBatch(currentBatchText, currentSpeaker!);
                 currentBatchText = "";
             }
             
-            // Check if the line itself is huge
             const lineChunks = splitTextSafely(line.text, MAX_BATCH_CHARS);
             if (lineChunks.length === 1) {
-                 // Fits now (because currentBatchText was cleared)
                 currentBatchText = lineChunks[0];
             } else {
-                // Line is huge, split it and process parts immediately
                 for (let i = 0; i < lineChunks.length - 1; i++) {
                     await processBatch(lineChunks[i], currentSpeaker!);
                 }
-                // Keep the last chunk as the start of the next batch
                 currentBatchText = lineChunks[lineChunks.length - 1];
             }
         }
     }
     
-    // Process final remaining batch
     if (currentSpeaker && currentBatchText) {
         await processBatch(currentBatchText, currentSpeaker);
     }
     
     if (audioChunks.length === 0) return null;
-    
-    // Create Blob at the very end to save RAM during the loop
+    if (onStatusUpdate) onStatusUpdate("รวมไฟล์เสียงเสร็จสิ้น...");
     return createWavBlob(audioChunks);
 
   } catch (error) {
@@ -203,25 +216,27 @@ export const generateMultiLineSpeech = async (
 
 export const generateSeparateSpeakerSpeech = async (
   dialogueLines: DialogueLine[],
-  speakerConfigs: Map<string, SpeakerConfig>
+  speakerConfigs: Map<string, SpeakerConfig>,
+  onStatusUpdate?: (msg: string) => void
 ): Promise<Map<string, Blob>> => {
   const speakerAudioMap = new Map<string, Blob>();
-  
+  const MAX_BATCH_CHARS = 2500; 
+
   for (const [speaker, config] of speakerConfigs.entries()) {
     const lines = dialogueLines.filter(line => line.speaker === speaker);
     if (lines.length === 0) continue;
 
     const audioChunks: Uint8Array[] = [];
-    const MAX_BATCH_CHARS = 1000; // Reduced limit
     let currentBatchText = "";
 
     const processBatch = async (text: string) => {
         if (!text.trim()) return;
+        if (onStatusUpdate) onStatusUpdate(`แยกไฟล์เสียง: ${speaker}...`);
         const textToSpeak = `${config.promptPrefix} ${text}`.trim();
-        const pcm = await generateRawAudio(textToSpeak, config.voice, config.seed);
+        const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, 1, onStatusUpdate);
         if (pcm) {
             audioChunks.push(pcm);
-            await delay(200); // Throttling
+            await delay(300);
         }
     };
 

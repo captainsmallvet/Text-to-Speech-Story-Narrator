@@ -9,10 +9,10 @@ import { generateSingleLineSpeech, generateMultiLineSpeech, generateSeparateSpea
 import { playAudio, downloadAudio, setOnPlaybackStateChange, stopAudio } from './utils/audio';
 import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS } from './constants';
-import { CopyIcon } from './components/icons';
+import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.5.3 (Copy Everything)";
-const LAST_UPDATED = "Nov 20, 2025 14:50";
+const APP_VERSION = "v1.5.4 (Quota Shield)";
+const LAST_UPDATED = "Nov 20, 2025 15:10";
 const DEFAULT_SEED = 949222;
 
 const App: React.FC = () => {
@@ -42,6 +42,7 @@ const App: React.FC = () => {
   const [speakerConfigs, setSpeakerConfigs] = useState<Map<string, SpeakerConfig>>(new Map());
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [generationStatus, setGenerationStatus] = useState<string>('');
   const [aiLoadingAction, setAiLoadingAction] = useState<'idea' | 'polish' | 'translate' | 'caption' | null>(null);
   
   // Unified Info/Result Modal
@@ -264,19 +265,23 @@ const App: React.FC = () => {
     effectiveConfigs.set(speakerName, { ...config, voice: voiceToUse, promptPrefix: fullPrefix });
 
     try {
-        const audioBlob = await generateMultiLineSpeech(speakerLines, effectiveConfigs);
+        setGenerationStatus(`Synthesizing preview for ${speakerName}...`);
+        const audioBlob = await generateMultiLineSpeech(speakerLines, effectiveConfigs, (msg) => setGenerationStatus(msg));
         if (audioBlob) {
             await playAudio(audioBlob, { volume: Number(config.volume) });
         }
     } catch (error: any) {
         console.error(error);
         showInfoModal("Synthesis Error", error.message, 'error');
+    } finally {
+        setGenerationStatus('');
     }
   }, [speakerConfigs, dialogueLines, allVoices, handlePreviewLine]);
 
   const handleGenerateFullStory = async () => {
     if (dialogueLines.length === 0) return;
     setIsGenerating(true);
+    setGenerationStatus('กำลังเตรียมข้อมูล...');
     setGeneratedStoryAudio(null);
     setGeneratedSpeakerAudio(new Map());
 
@@ -295,13 +300,13 @@ const App: React.FC = () => {
 
     try {
         if (generationMode === 'combined') {
-            const audioBlob = await generateMultiLineSpeech(dialogueLines, effectiveSpeakerConfigs);
+            const audioBlob = await generateMultiLineSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg));
             if (audioBlob) {
                 setGeneratedStoryAudio(audioBlob);
                 showToast("Full audio generated!");
             }
         } else {
-            const speakerAudioMap = await generateSeparateSpeakerSpeech(dialogueLines, effectiveSpeakerConfigs);
+            const speakerAudioMap = await generateSeparateSpeakerSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg));
             if (speakerAudioMap.size > 0) {
                 setGeneratedSpeakerAudio(speakerAudioMap);
                 showToast("Speaker files ready!");
@@ -309,9 +314,10 @@ const App: React.FC = () => {
         }
     } catch (error: any) {
         console.error(error);
-        showInfoModal("Batch Synthesis Error", `An error occurred during long-form synthesis: ${error.message}. Try reducing the length of your lines.`, 'error');
+        showInfoModal("Synthesis Interrupted", `ระบบหยุดทำงานชั่วคราว: ${error.message}. กรุณาลองใหม่อีกครั้งในภายหลัง`, 'error');
     } finally {
       setIsGenerating(false);
+      setGenerationStatus('');
     }
   };
 
@@ -475,6 +481,24 @@ const App: React.FC = () => {
           />
         </main>
       </div>
+
+      {isGenerating && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+              <div className="bg-gray-900 border border-emerald-500/30 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl space-y-4">
+                  <div className="relative inline-block">
+                    <LoadingSpinner className="w-16 h-16 text-emerald-500" />
+                    <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-emerald-300">AI</div>
+                  </div>
+                  <h3 className="text-xl font-bold text-white">กำลังสร้างเสียงพากย์</h3>
+                  <div className="bg-black/40 rounded-lg p-3 border border-gray-800">
+                      <p className="text-emerald-400 font-mono text-sm animate-pulse">{generationStatus || "เริ่มกระบวนการ..."}</p>
+                  </div>
+                  <p className="text-gray-400 text-xs leading-relaxed">
+                      แอปกำลังบริหารจัดการโควต้า API เพื่อรองรับไฟล์เสียงขนาดใหญ่ กรุณารอสักครู่...
+                  </p>
+              </div>
+          </div>
+      )}
 
       {toastMessage && (
         <div className="fixed bottom-5 right-5 bg-gray-900 text-white py-3 px-4 rounded-xl shadow-2xl animate-fade-in-out z-50 border border-gray-700 flex items-center gap-3">
