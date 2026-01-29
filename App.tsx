@@ -11,8 +11,8 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.5.5 (Daily Quota Guard)";
-const LAST_UPDATED = "Nov 20, 2025 15:35";
+const APP_VERSION = "v1.5.6 (Sync Fixed)";
+const LAST_UPDATED = "Nov 20, 2025 16:00";
 const DEFAULT_SEED = 949222;
 
 const App: React.FC = () => {
@@ -124,6 +124,7 @@ const App: React.FC = () => {
     const newDialogueLines: DialogueLine[] = [];
     const newSpeakers = new Set<string>();
     let lastSpeaker: string | null = null;
+
     lines.forEach((line, index) => {
       const trimmedLine = line.trim();
       if (trimmedLine === '') return;
@@ -136,19 +137,33 @@ const App: React.FC = () => {
         newSpeakers.add(currentSpeaker);
       }
     });
+
     setDialogueLines(newDialogueLines);
+
+    // Sync Speaker Configs: Add new, Keep existing, Remove obsolete
     setSpeakerConfigs(prevConfigs => {
-      const newConfigs = new Map<string, SpeakerConfig>(prevConfigs);
+      const newConfigs = new Map<string, SpeakerConfig>();
       let voiceIndex = 0;
+
+      // Iterate through the newly discovered speakers in the script
       newSpeakers.forEach(speaker => {
-        if (!newConfigs.has(speaker)) {
+        if (prevConfigs.has(speaker)) {
+          // Keep existing configuration for this speaker
+          newConfigs.set(speaker, prevConfigs.get(speaker)!);
+        } else {
+          // Initialize a default config for the new speaker
           newConfigs.set(speaker, {
             voice: AVAILABLE_VOICES[voiceIndex % AVAILABLE_VOICES.length].id,
-            promptPrefix: '', emotion: 'none', volume: 1, speed: 'normal', seed: DEFAULT_SEED,
+            promptPrefix: '',
+            emotion: 'none',
+            volume: 1,
+            speed: 'normal',
+            seed: DEFAULT_SEED,
           });
-          voiceIndex++;
         }
+        voiceIndex++;
       });
+      
       return newConfigs;
     });
   }, [scriptText]);
