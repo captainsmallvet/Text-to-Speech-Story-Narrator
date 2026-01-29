@@ -11,38 +11,42 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS } from './constants';
 import { CopyIcon } from './components/icons';
 
-const APP_VERSION = "v1.5.2 (UI Feedback)";
-const LAST_UPDATED = "Nov 20, 2025 14:30";
+const APP_VERSION = "v1.5.3 (Copy Everything)";
+const LAST_UPDATED = "Nov 20, 2025 14:50";
 const DEFAULT_SEED = 949222;
 
 const App: React.FC = () => {
   // --- ระบบจัดการ API Key สำหรับใช้งานส่วนตัว ---
-    const [inputKey, setInputKey] = useState<string>('');
+  const [inputKey, setInputKey] = useState<string>('');
 
-      useEffect(() => {
-          const savedKey = localStorage.getItem('gemini_api_key');
-              if (savedKey) {
-                    setInputKey(savedKey);
-                          (window as any).process = { env: { API_KEY: savedKey } };
-                              } else {
-                                    setInputKey('no API key');
-                                        }
-                                          }, []);
+  useEffect(() => {
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (savedKey) {
+      setInputKey(savedKey);
+      (window as any).process = { env: { API_KEY: savedKey } };
+    } else {
+      setInputKey('no API key');
+    }
+  }, []);
 
-                                            const handleSendKey = () => {
-                                                if (inputKey && inputKey !== 'no API key') {
-                                                      localStorage.setItem('gemini_api_key', inputKey);
-                                                            alert("บันทึก API Key เรียบร้อยแล้วครับ");
-                                                                  window.location.reload(); 
-                                                                      }
-                                                                        };
+  const handleSendKey = () => {
+    if (inputKey && inputKey !== 'no API key') {
+      localStorage.setItem('gemini_api_key', inputKey);
+      showInfoModal("System Notification", "บันทึก API Key เรียบร้อยแล้วครับ ระบบจะทำการรีโหลดหน้าเว็บ");
+      setTimeout(() => window.location.reload(), 1500);
+    }
+  };
+
   const [scriptText, setScriptText] = useState<string>('');
   const [dialogueLines, setDialogueLines] = useState<DialogueLine[]>([]);
   const [speakerConfigs, setSpeakerConfigs] = useState<Map<string, SpeakerConfig>>(new Map());
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [aiLoadingAction, setAiLoadingAction] = useState<'idea' | 'polish' | 'translate' | 'caption' | null>(null);
-  const [aiResultModal, setAiResultModal] = useState<{ title: string; content: string } | null>(null);
+  
+  // Unified Info/Result Modal
+  const [infoModal, setInfoModal] = useState<{ title: string; content: string; type?: 'info' | 'error' | 'success' } | null>(null);
+  
   const [generatedStoryAudio, setGeneratedStoryAudio] = useState<Blob | null>(null);
   const [generatedSpeakerAudio, setGeneratedSpeakerAudio] = useState<Map<string, Blob>>(new Map());
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -60,6 +64,10 @@ const App: React.FC = () => {
   const [textModelId, setTextModelId] = useState<string>(TEXT_MODELS[0].id);
 
   const allVoices = useMemo(() => [...AVAILABLE_VOICES, ...customVoices], [customVoices]);
+
+  const showInfoModal = (title: string, content: string, type: 'info' | 'error' | 'success' = 'info') => {
+      setInfoModal({ title, content, type });
+  };
 
   const handleSpeakerConfigChange = useCallback((speaker: string, newConfig: SpeakerConfig) => {
     setSpeakerConfigs(prevConfigs => {
@@ -189,7 +197,7 @@ const App: React.FC = () => {
   
   const showToast = (message: string) => {
     setToastMessage(message);
-    setTimeout(() => setToastMessage(null), 3000);
+    setTimeout(() => setToastMessage(null), 4000);
   };
 
   const handleSaveProgress = () => {
@@ -233,7 +241,7 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       console.error(error);
-      alert(`Synthesis Error: ${error.message}`);
+      showInfoModal("Synthesis Error", error.message, 'error');
     }
   }, [speakerConfigs, allVoices]);
 
@@ -241,10 +249,8 @@ const App: React.FC = () => {
     const config = speakerConfigs.get(speakerName);
     if (!config) return;
 
-    // Filter all lines belonging to this speaker
     const speakerLines = dialogueLines.filter(l => l.speaker === speakerName);
     if (speakerLines.length === 0) {
-        // Default preview text if no lines exist
         await handlePreviewLine({ id: 'preview', speaker: speakerName, text: "This is a preview of my voice profile. Please add script text to hear a full performance." });
         return;
     }
@@ -264,7 +270,7 @@ const App: React.FC = () => {
         }
     } catch (error: any) {
         console.error(error);
-        alert(`Synthesis Error: ${error.message}`);
+        showInfoModal("Synthesis Error", error.message, 'error');
     }
   }, [speakerConfigs, dialogueLines, allVoices, handlePreviewLine]);
 
@@ -303,7 +309,7 @@ const App: React.FC = () => {
         }
     } catch (error: any) {
         console.error(error);
-        alert(`Synthesis Error: ${error.message}`);
+        showInfoModal("Batch Synthesis Error", `An error occurred during long-form synthesis: ${error.message}. Try reducing the length of your lines.`, 'error');
     } finally {
       setIsGenerating(false);
     }
@@ -343,7 +349,7 @@ const App: React.FC = () => {
           }
 
           if (action === 'caption') {
-              setAiResultModal({ title: "AI Generated Caption", content: finalResult });
+              showInfoModal("AI Generated Caption", finalResult, 'success');
           } else if (action === 'idea') {
               setScriptText(prev => prev + (prev.trim() ? "\n\n" : "") + finalResult);
               showToast("AI Idea added!");
@@ -353,7 +359,7 @@ const App: React.FC = () => {
           }
       } catch (error: any) {
           console.error(error);
-          alert(`AI Tool Error: ${error.message}`);
+          showInfoModal("AI Tool Error", error.message, 'error');
       } finally {
           setAiLoadingAction(null);
       }
@@ -370,42 +376,39 @@ const App: React.FC = () => {
     downloadAudio(audioBlob, `TTS_Narrator_${speakerName}_${Date.now()}`);
   };
 
-  const handleCopyAiResult = async () => {
-    if (aiResultModal) {
-      try {
-        await navigator.clipboard.writeText(aiResultModal.content);
-        setCopySuccess(true);
-        setTimeout(() => setCopySuccess(false), 2000);
-      } catch (err) {
-        console.error('Failed to copy text: ', err);
-      }
+  const handleCopyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-4 lg:p-8 font-sans">
       <div className="max-w-7xl mx-auto">
-      {/* API Key Management Bar */}
-              <div className="mb-6 p-4 bg-gray-900 border border-emerald-500/30 rounded-xl">
-                        <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-emerald-400 uppercase text-left">
-                                                  API Key Control Panel :
-                                                              </label>
-                                                                          <div className="flex flex-wrap sm:flex-nowrap gap-2">
-                                                                                        <input
-                                                                                                        type="text"
-                                                                                                                        value={inputKey}
-                                                                                                                                        onChange={(e) => setInputKey(e.target.value)}
-                                                                                                                                                        className="w-full flex-1 bg-black border border-gray-700 rounded px-3 py-2 text-sm font-mono text-emerald-300 outline-none"
-                                                                                                                                                                      />
-                                                                                                                                                                                    <div className="flex gap-2 w-full sm:w-auto">
-                                                                                                                                                                                                    <button onClick={handleSendKey} className="flex-1 bg-emerald-600 px-4 py-2 rounded text-xs font-bold hover:bg-emerald-700 transition-colors">SEND</button>
-                                                                                                                                                                                                                    <button onClick={() => { navigator.clipboard.writeText(inputKey); alert("Copy แล้วครับ"); }} className="flex-1 bg-blue-600 px-4 py-2 rounded text-xs font-bold">COPY</button>
-                                                                                                                                                                                                                                    <button onClick={() => { localStorage.removeItem('gemini_api_key'); setInputKey('no API key'); alert("ลบ Key แล้วครับ"); }} className="flex-1 bg-red-600 px-4 py-2 rounded text-xs font-bold">CLEAR</button>
-                                                                                                                                                                                                                                                  </div>
-                                                                                                                                                                                                                                                              </div>
-                                                                                                                                                                                                                                                                        </div>
-                                                                                                                                                                                                                                                                                </div>
+        <div className="mb-6 p-4 bg-gray-900 border border-emerald-500/30 rounded-xl">
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold text-emerald-400 uppercase text-left">API Key Control Panel :</label>
+            <div className="flex flex-wrap sm:flex-nowrap gap-2">
+              <input
+                type="text"
+                value={inputKey}
+                onChange={(e) => setInputKey(e.target.value)}
+                className="w-full flex-1 bg-black border border-gray-700 rounded px-3 py-2 text-sm font-mono text-emerald-300 outline-none"
+                placeholder="Enter your Gemini API Key..."
+              />
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button onClick={handleSendKey} className="flex-1 bg-emerald-600 px-4 py-2 rounded text-xs font-bold hover:bg-emerald-700 transition-colors">SEND</button>
+                <button onClick={() => { handleCopyText(inputKey); showToast("Key Copied!"); }} className="flex-1 bg-blue-600 px-4 py-2 rounded text-xs font-bold">COPY</button>
+                <button onClick={() => { localStorage.removeItem('gemini_api_key'); setInputKey('no API key'); showToast("Key Cleared!"); }} className="flex-1 bg-red-600 px-4 py-2 rounded text-xs font-bold">CLEAR</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <header className="text-center mb-6">
           <h1 className="text-4xl lg:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-600">
             Text-to-Speech Story Narrator
@@ -472,11 +475,20 @@ const App: React.FC = () => {
           />
         </main>
       </div>
+
       {toastMessage && (
-        <div className="fixed bottom-5 right-5 bg-teal-600 text-white py-2 px-4 rounded-lg shadow-lg animate-fade-in-out z-50 border border-teal-400/50">
-          {toastMessage}
+        <div className="fixed bottom-5 right-5 bg-gray-900 text-white py-3 px-4 rounded-xl shadow-2xl animate-fade-in-out z-50 border border-gray-700 flex items-center gap-3">
+          <span className="flex-grow">{toastMessage}</span>
+          <button 
+            onClick={() => { handleCopyText(toastMessage); showToast("Message copied!"); }}
+            className="p-1.5 hover:bg-gray-700 rounded-md transition-colors text-gray-400"
+            title="Copy message"
+          >
+            <CopyIcon className="w-4 h-4" />
+          </button>
         </div>
       )}
+
       {isCloneModalOpen && (
         <VoiceCloneModal 
             onClose={() => setIsCloneModalOpen(false)}
@@ -497,6 +509,7 @@ const App: React.FC = () => {
             speakerName={activeSpeakerForClone}
         />
       )}
+
       {isLibraryModalOpen && (
         <VoiceLibraryModal
             onClose={() => setIsLibraryModalOpen(false)}
@@ -511,25 +524,30 @@ const App: React.FC = () => {
             }}
         />
       )}
-      {aiResultModal && (
-        <Modal title={aiResultModal.title} onClose={() => setAiResultModal(null)}>
+
+      {infoModal && (
+        <Modal title={infoModal.title} onClose={() => setInfoModal(null)}>
           <div className="space-y-4">
-            <div className="bg-gray-900/80 p-4 rounded-lg border border-gray-700 max-h-64 overflow-y-auto">
-              <p className="text-gray-200 leading-relaxed whitespace-pre-wrap">{aiResultModal.content}</p>
+            <div className={`p-4 rounded-lg border max-h-64 overflow-y-auto ${
+                infoModal.type === 'error' ? 'bg-red-900/20 border-red-800' :
+                infoModal.type === 'success' ? 'bg-emerald-900/20 border-emerald-800' :
+                'bg-gray-900 border-gray-700'
+            }`}>
+              <p className="text-gray-200 leading-relaxed whitespace-pre-wrap">{infoModal.content}</p>
             </div>
             <div className="flex justify-end gap-3">
               <button
-                onClick={handleCopyAiResult}
+                onClick={() => handleCopyText(infoModal.content)}
                 className={`flex items-center gap-2 font-bold py-2 px-4 rounded-lg transition-all ${
                   copySuccess ? "bg-teal-600 text-white" : "bg-indigo-600 hover:bg-indigo-700 text-white"
                 }`}
               >
                 <CopyIcon className="w-5 h-5" />
-                {copySuccess ? "Copied!" : "Copy Caption"}
+                {copySuccess ? "Copied!" : "Copy Content"}
               </button>
               <button
-                onClick={() => setAiResultModal(null)}
-                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg"
+                onClick={() => setInfoModal(null)}
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
               >
                 Close
               </button>
