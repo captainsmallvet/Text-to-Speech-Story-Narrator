@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ScriptEditor from './components/ScriptEditor';
 import VoiceSettings from './components/VoiceSettings';
 import VoiceCloneModal from './components/VoiceCloneModal';
@@ -11,13 +11,13 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.5.4 (Quota Shield)";
-const LAST_UPDATED = "Nov 20, 2025 15:10";
+const APP_VERSION = "v1.5.5 (Daily Quota Guard)";
+const LAST_UPDATED = "Nov 20, 2025 15:35";
 const DEFAULT_SEED = 949222;
 
 const App: React.FC = () => {
-  // --- ระบบจัดการ API Key สำหรับใช้งานส่วนตัว ---
   const [inputKey, setInputKey] = useState<string>('');
+  const isAbortingRef = useRef(false);
 
   useEffect(() => {
     const savedKey = localStorage.getItem('gemini_api_key');
@@ -44,10 +44,7 @@ const App: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationStatus, setGenerationStatus] = useState<string>('');
   const [aiLoadingAction, setAiLoadingAction] = useState<'idea' | 'polish' | 'translate' | 'caption' | null>(null);
-  
-  // Unified Info/Result Modal
   const [infoModal, setInfoModal] = useState<{ title: string; content: string; type?: 'info' | 'error' | 'success' } | null>(null);
-  
   const [generatedStoryAudio, setGeneratedStoryAudio] = useState<Blob | null>(null);
   const [generatedSpeakerAudio, setGeneratedSpeakerAudio] = useState<Map<string, Blob>>(new Map());
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -60,8 +57,6 @@ const App: React.FC = () => {
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState<boolean>(false);
   const [activeSpeakerForClone, setActiveSpeakerForClone] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
-  
-  // Global Settings
   const [textModelId, setTextModelId] = useState<string>(TEXT_MODELS[0].id);
 
   const allVoices = useMemo(() => [...AVAILABLE_VOICES, ...customVoices], [customVoices]);
@@ -86,63 +81,41 @@ const App: React.FC = () => {
     });
   }, [generatedStoryAudio, storyPlaybackSpeed, storyPlaybackVolume]);
 
-  const handleOpenCloneModal = useCallback((speakerName: string) => {
-    setActiveSpeakerForClone(speakerName);
-    setIsCloneModalOpen(true);
-  }, []);
-
   useEffect(() => {
     setOnPlaybackStateChange(setIsPlaying);
-  }, []);
-
-  useEffect(() => {
     const savedScript = localStorage.getItem('tts-script');
     const savedConfigs = localStorage.getItem('tts-speakerConfigs');
     const savedCustomVoices = localStorage.getItem('tts-customVoices');
     const savedTextModelId = localStorage.getItem('tts-textModelId');
-    
     if (savedScript) setScriptText(savedScript);
     else setScriptText(EXAMPLE_SCRIPT);
-
     if (savedTextModelId) setTextModelId(savedTextModelId);
-
     if (savedConfigs) {
       try {
         const parsedConfigs: [string, any][] = JSON.parse(savedConfigs) as any;
         if (Array.isArray(parsedConfigs)) {
-          const migratedConfigs = new Map<string, SpeakerConfig>(parsedConfigs.map(([speaker, config]) => {
-              return [speaker, {
-                  voice: config.voice || AVAILABLE_VOICES[0].id,
-                  promptPrefix: config.promptPrefix || '',
-                  emotion: config.emotion || 'none',
-                  volume: config.volume || 1,
-                  speed: config.speed || 'normal',
-                  seed: config.seed !== undefined ? config.seed : DEFAULT_SEED,
-              }];
-          }));
+          const migratedConfigs = new Map<string, SpeakerConfig>(parsedConfigs.map(([speaker, config]) => [speaker, {
+              voice: config.voice || AVAILABLE_VOICES[0].id,
+              promptPrefix: config.promptPrefix || '',
+              emotion: config.emotion || 'none',
+              volume: config.volume || 1,
+              speed: config.speed || 'normal',
+              seed: config.seed !== undefined ? config.seed : DEFAULT_SEED,
+          }]));
           setSpeakerConfigs(migratedConfigs);
         }
-      } catch (e: any) {
-        console.error("Failed to parse speaker configs", e);
-      }
+      } catch (e) { console.error(e); }
     }
     if (savedCustomVoices) {
         try {
             const parsedData = JSON.parse(savedCustomVoices) as any;
             if (Array.isArray(parsedData)) {
-                const migratedVoices: Voice[] = parsedData
-                    .filter((voice: any) => voice && voice.id && voice.name)
-                    .map((voice: any) => ({
-                        id: voice.id,
-                        name: voice.name,
-                        isCustom: true,
-                        baseVoiceId: voice.baseVoiceId || AVAILABLE_VOICES[0].id,
-                    }));
+                const migratedVoices: Voice[] = parsedData.filter((v: any) => v && v.id).map((v: any) => ({
+                    id: v.id, name: v.name, isCustom: true, baseVoiceId: v.baseVoiceId || AVAILABLE_VOICES[0].id,
+                }));
                 setCustomVoices(migratedVoices);
             }
-        } catch (e: any) {
-            console.error("Failed to parse custom voices", e);
-        }
+        } catch (e) { console.error(e); }
     }
   }, []);
 
@@ -151,22 +124,13 @@ const App: React.FC = () => {
     const newDialogueLines: DialogueLine[] = [];
     const newSpeakers = new Set<string>();
     let lastSpeaker: string | null = null;
-
     lines.forEach((line, index) => {
       const trimmedLine = line.trim();
       if (trimmedLine === '') return;
       const match = trimmedLine.match(/^([^:]+):\s*(.*)$/);
-      let currentSpeaker: string = '';
-      let text: string = '';
-      if (match) {
-        currentSpeaker = match[1].trim();
-        text = match[2].trim();
-        lastSpeaker = currentSpeaker;
-      } else {
-        if (!lastSpeaker) lastSpeaker = 'Speaker 1';
-        currentSpeaker = lastSpeaker;
-        text = trimmedLine;
-      }
+      let currentSpeaker = match ? match[1].trim() : (lastSpeaker || 'Speaker 1');
+      let text = match ? match[2].trim() : trimmedLine;
+      if (match) lastSpeaker = currentSpeaker;
       if (currentSpeaker && text) {
         newDialogueLines.push({ id: `${index}-${currentSpeaker}`, speaker: currentSpeaker, text });
         newSpeakers.add(currentSpeaker);
@@ -180,17 +144,10 @@ const App: React.FC = () => {
         if (!newConfigs.has(speaker)) {
           newConfigs.set(speaker, {
             voice: AVAILABLE_VOICES[voiceIndex % AVAILABLE_VOICES.length].id,
-            promptPrefix: '',
-            emotion: 'none',
-            volume: 1,
-            speed: 'normal',
-            seed: DEFAULT_SEED,
+            promptPrefix: '', emotion: 'none', volume: 1, speed: 'normal', seed: DEFAULT_SEED,
           });
           voiceIndex++;
         }
-      });
-      Array.from(newConfigs.keys()).forEach((speaker: string) => {
-        if (!newSpeakers.has(speaker)) newConfigs.delete(speaker);
       });
       return newConfigs;
     });
@@ -212,75 +169,18 @@ const App: React.FC = () => {
   const constructFullPrefix = (config: SpeakerConfig) => {
     const speedAdverb = SPEEDS.find(s => s.value === config.speed)?.adverb ?? '';
     const emotionDesc = config.emotion !== 'none' ? config.emotion : '';
-
     if (!speedAdverb && !emotionDesc) return '';
-
     let fullPrefix = 'Please speak ';
-    if (speedAdverb && emotionDesc) {
-        fullPrefix += `${speedAdverb} and ${emotionDesc}:`;
-    } else if (speedAdverb) {
-        fullPrefix += `${speedAdverb}:`;
-    } else if (emotionDesc) {
-        fullPrefix += `${emotionDesc}:`;
-    }
+    if (speedAdverb && emotionDesc) fullPrefix += `${speedAdverb} and ${emotionDesc}:`;
+    else if (speedAdverb) fullPrefix += `${speedAdverb}:`;
+    else if (emotionDesc) fullPrefix += `${emotionDesc}:`;
     return fullPrefix;
   };
-
-  const handlePreviewLine = useCallback(async (line: DialogueLine) => {
-    const config = speakerConfigs.get(line.speaker);
-    if (!config) return;
-    const voiceInfo = allVoices.find(v => v.id === config.voice);
-    if (!voiceInfo) return;
-    const voiceToUse = (voiceInfo.isCustom && voiceInfo.baseVoiceId) ? voiceInfo.baseVoiceId : voiceInfo.id;
-    const fullPrefix = constructFullPrefix(config);
-    const textToSpeak = `${fullPrefix} ${line.text}`.trim();
-
-    try {
-      const audioBlob = await generateSingleLineSpeech(textToSpeak, voiceToUse, config.seed);
-      if (audioBlob) {
-        await playAudio(audioBlob, { volume: Number(config.volume) });
-      }
-    } catch (error: any) {
-      console.error(error);
-      showInfoModal("Synthesis Error", error.message, 'error');
-    }
-  }, [speakerConfigs, allVoices]);
-
-  const handlePreviewSpeaker = useCallback(async (speakerName: string) => {
-    const config = speakerConfigs.get(speakerName);
-    if (!config) return;
-
-    const speakerLines = dialogueLines.filter(l => l.speaker === speakerName);
-    if (speakerLines.length === 0) {
-        await handlePreviewLine({ id: 'preview', speaker: speakerName, text: "This is a preview of my voice profile. Please add script text to hear a full performance." });
-        return;
-    }
-
-    const voiceInfo = allVoices.find(v => v.id === config.voice);
-    if (!voiceInfo) return;
-    const voiceToUse = (voiceInfo.isCustom && voiceInfo.baseVoiceId) ? voiceInfo.baseVoiceId : voiceInfo.id;
-    const fullPrefix = constructFullPrefix(config);
-
-    const effectiveConfigs = new Map<string, SpeakerConfig>();
-    effectiveConfigs.set(speakerName, { ...config, voice: voiceToUse, promptPrefix: fullPrefix });
-
-    try {
-        setGenerationStatus(`Synthesizing preview for ${speakerName}...`);
-        const audioBlob = await generateMultiLineSpeech(speakerLines, effectiveConfigs, (msg) => setGenerationStatus(msg));
-        if (audioBlob) {
-            await playAudio(audioBlob, { volume: Number(config.volume) });
-        }
-    } catch (error: any) {
-        console.error(error);
-        showInfoModal("Synthesis Error", error.message, 'error');
-    } finally {
-        setGenerationStatus('');
-    }
-  }, [speakerConfigs, dialogueLines, allVoices, handlePreviewLine]);
 
   const handleGenerateFullStory = async () => {
     if (dialogueLines.length === 0) return;
     setIsGenerating(true);
+    isAbortingRef.current = false;
     setGenerationStatus('กำลังเตรียมข้อมูล...');
     setGeneratedStoryAudio(null);
     setGeneratedSpeakerAudio(new Map());
@@ -291,30 +191,34 @@ const App: React.FC = () => {
             const config = speakerConfigs.get(line.speaker);
             if (!config) continue;
             const voiceInfo = allVoices.find(v => v.id === config.voice);
-            if (!voiceInfo) continue;
-            const voiceToUse = (voiceInfo.isCustom && voiceInfo.baseVoiceId) ? voiceInfo.baseVoiceId : voiceInfo.id;
-            const fullPrefix = constructFullPrefix(config);
-            effectiveSpeakerConfigs.set(line.speaker, { ...config, voice: voiceToUse, promptPrefix: fullPrefix });
+            const voiceToUse = (voiceInfo?.isCustom && voiceInfo.baseVoiceId) ? voiceInfo.baseVoiceId : (voiceInfo?.id || AVAILABLE_VOICES[0].id);
+            effectiveSpeakerConfigs.set(line.speaker, { ...config, voice: voiceToUse, promptPrefix: constructFullPrefix(config) });
         }
     }
 
     try {
+        const checkAborted = () => isAbortingRef.current;
         if (generationMode === 'combined') {
-            const audioBlob = await generateMultiLineSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg));
+            const audioBlob = await generateMultiLineSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg), checkAborted);
             if (audioBlob) {
                 setGeneratedStoryAudio(audioBlob);
                 showToast("Full audio generated!");
             }
         } else {
-            const speakerAudioMap = await generateSeparateSpeakerSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg));
-            if (speakerAudioMap.size > 0) {
+            const speakerAudioMap = await generateSeparateSpeakerSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg), checkAborted);
+            if (speakerAudioMap && speakerAudioMap.size > 0) {
                 setGeneratedSpeakerAudio(speakerAudioMap);
                 showToast("Speaker files ready!");
             }
         }
     } catch (error: any) {
         console.error(error);
-        showInfoModal("Synthesis Interrupted", `ระบบหยุดทำงานชั่วคราว: ${error.message}. กรุณาลองใหม่อีกครั้งในภายหลัง`, 'error');
+        if (error.message.startsWith("DAILY_QUOTA_EXCEEDED")) {
+            const hours = error.message.split('|')[1];
+            showInfoModal("โควต้ารายวันหมดแล้ว", `โควต้า Google Gemini ของคุณหมดลงแล้วสำหรับวันนี้ กรุณารอประมาณ ${hours} ชั่วโมง หรือเปลี่ยนไปใช้ API Key ชุดอื่นครับ`, 'error');
+        } else if (error.message !== "USER_ABORTED") {
+            showInfoModal("เกิดข้อผิดพลาด", `ระบบหยุดทำงาน: ${error.message}`, 'error');
+        }
     } finally {
       setIsGenerating(false);
       setGenerationStatus('');
@@ -326,60 +230,25 @@ const App: React.FC = () => {
           showToast("Please enter some text first.");
           return;
       }
-
       setAiLoadingAction(action);
       try {
           let prompt = "";
           let systemInstruction = "You are a specialized AI assistant for Buddhist Dhamma story narrators. Keep the tone respectful, wise, and serene.";
-          
           switch (action) {
-              case 'idea':
-                  prompt = `Create a short, inspiring Buddhist Dhamma script outline or first few lines about "Inner Peace" or "Mindfulness". Use the format 'Speaker: Text'. Current script content: ${scriptText}`;
-                  break;
-              case 'polish':
-                  prompt = `Improve the creative writing, flow, and vocabulary of the following script. Ensure it sounds natural for a narrator and maintains the established speaker tags. Script:\n${scriptText}`;
-                  break;
-              case 'translate':
-                  prompt = `Translate the following script to Thai, maintaining the 'Speaker: Text' format. If it is already in Thai, translate it to English. Script:\n${scriptText}`;
-                  break;
-              case 'caption':
-                  prompt = `Generate a short, engaging summary or caption for this story. Make it catchy and emotional for social media. Script:\n${scriptText}`;
-                  break;
+              case 'idea': prompt = `Create a short, inspiring Buddhist Dhamma script outline or first few lines about "Inner Peace" or "Mindfulness". Use the format 'Speaker: Text'. Current script content: ${scriptText}`; break;
+              case 'polish': prompt = `Improve the creative writing, flow, and vocabulary of the following script. Ensure it sounds natural for a narrator and maintains the established speaker tags. Script:\n${scriptText}`; break;
+              case 'translate': prompt = `Translate the following script to Thai, maintaining the 'Speaker: Text' format. If it is already in Thai, translate it to English. Script:\n${scriptText}`; break;
+              case 'caption': prompt = `Generate a short, engaging summary or caption for this story. Make it catchy and emotional for social media. Script:\n${scriptText}`; break;
           }
-
           const result = await performTextReasoning(prompt, textModelId, systemInstruction);
           const finalResult = result.trim();
-          
-          if (!finalResult) {
-              throw new Error("AI returned an empty response. Please try again.");
-          }
-
-          if (action === 'caption') {
-              showInfoModal("AI Generated Caption", finalResult, 'success');
-          } else if (action === 'idea') {
-              setScriptText(prev => prev + (prev.trim() ? "\n\n" : "") + finalResult);
-              showToast("AI Idea added!");
-          } else {
-              setScriptText(finalResult);
-              showToast(`AI ${action.charAt(0).toUpperCase() + action.slice(1)} complete!`);
-          }
+          if (!finalResult) throw new Error("AI returned an empty response.");
+          if (action === 'caption') showInfoModal("AI Generated Caption", finalResult, 'success');
+          else if (action === 'idea') { setScriptText(prev => prev + (prev.trim() ? "\n\n" : "") + finalResult); showToast("AI Idea added!"); }
+          else { setScriptText(finalResult); showToast(`AI ${action.charAt(0).toUpperCase() + action.slice(1)} complete!`); }
       } catch (error: any) {
-          console.error(error);
           showInfoModal("AI Tool Error", error.message, 'error');
-      } finally {
-          setAiLoadingAction(null);
-      }
-  };
-  
-  const handleDownload = () => {
-    if(!generatedStoryAudio) return;
-    downloadAudio(generatedStoryAudio, `TTS_Narrator_Master_${Date.now()}`);
-  };
-
-  const handleDownloadSpeakerFile = (speakerName: string) => {
-    const audioBlob = generatedSpeakerAudio.get(speakerName);
-    if (!audioBlob) return;
-    downloadAudio(audioBlob, `TTS_Narrator_${speakerName}_${Date.now()}`);
+      } finally { setAiLoadingAction(null); }
   };
 
   const handleCopyText = async (text: string) => {
@@ -387,9 +256,7 @@ const App: React.FC = () => {
       await navigator.clipboard.writeText(text);
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy text: ', err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   return (
@@ -400,9 +267,7 @@ const App: React.FC = () => {
             <label className="text-xs font-bold text-emerald-400 uppercase text-left">API Key Control Panel :</label>
             <div className="flex flex-wrap sm:flex-nowrap gap-2">
               <input
-                type="text"
-                value={inputKey}
-                onChange={(e) => setInputKey(e.target.value)}
+                type="text" value={inputKey} onChange={(e) => setInputKey(e.target.value)}
                 className="w-full flex-1 bg-black border border-gray-700 rounded px-3 py-2 text-sm font-mono text-emerald-300 outline-none"
                 placeholder="Enter your Gemini API Key..."
               />
@@ -419,83 +284,64 @@ const App: React.FC = () => {
           <h1 className="text-4xl lg:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-600">
             Text-to-Speech Story Narrator
           </h1>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-4 text-xs">
               <div className="flex items-center gap-2 bg-gray-900/50 p-2 rounded-lg border border-gray-800">
-                <label htmlFor="text-model" className="text-xs font-bold text-emerald-500 uppercase tracking-widest whitespace-nowrap">
-                    Text Reasoning Model:
-                </label>
+                <label className="font-bold text-emerald-500 uppercase tracking-widest whitespace-nowrap">Model:</label>
                 <select
-                    id="text-model"
-                    value={textModelId}
-                    onChange={(e) => {
-                        setTextModelId(e.target.value);
-                        localStorage.setItem('tts-textModelId', e.target.value);
-                    }}
-                    className="bg-gray-800 text-xs font-bold text-white border-none rounded p-1 focus:ring-1 focus:ring-emerald-500"
+                    value={textModelId} onChange={(e) => { setTextModelId(e.target.value); localStorage.setItem('tts-textModelId', e.target.value); }}
+                    className="bg-gray-800 text-white border-none rounded p-1"
                 >
-                    {TEXT_MODELS.map(m => (
-                        <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
+                    {TEXT_MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
               </div>
-              <p className="text-xs text-gray-500 font-mono tracking-wide">
-                {APP_VERSION} | Neural Voice Engine
-              </p>
+              <p className="text-gray-500 font-mono">{APP_VERSION} | Neural Voice Engine</p>
           </div>
         </header>
 
         <main className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-14rem)] min-h-[600px]">
           <ScriptEditor
-            scriptText={scriptText}
-            setScriptText={setScriptText}
-            onSave={handleSaveProgress}
-            onClear={() => setScriptText('')}
-            error={parsingError}
-            onAiAction={handleAiAction}
-            aiLoadingAction={aiLoadingAction}
+            scriptText={scriptText} setScriptText={setScriptText} onSave={handleSaveProgress} onClear={() => setScriptText('')}
+            error={parsingError} onAiAction={handleAiAction} aiLoadingAction={aiLoadingAction}
           />
           <VoiceSettings
-            speakerConfigs={speakerConfigs}
-            onSpeakerConfigChange={handleSpeakerConfigChange}
-            onPreviewLine={handlePreviewLine}
-            onPreviewSpeaker={handlePreviewSpeaker}
-            dialogueLines={dialogueLines}
-            onGenerateFullStory={handleGenerateFullStory}
-            isGenerating={isGenerating}
-            generatedAudio={generatedStoryAudio}
-            generatedSpeakerAudio={generatedSpeakerAudio}
-            onDownload={handleDownload}
-            onDownloadSpeakerFile={handleDownloadSpeakerFile}
-            onPlayFullStory={handlePlayFullStory}
-            onStopFullStory={stopAudio}
-            isPlaying={isPlaying}
-            onOpenLibrary={() => setIsLibraryModalOpen(true)}
-            onCloneVoice={handleOpenCloneModal}
-            allVoices={allVoices}
-            storyPlaybackSpeed={storyPlaybackSpeed}
-            setStoryPlaybackSpeed={setStoryPlaybackSpeed}
-            storyPlaybackVolume={storyPlaybackVolume}
-            setStoryPlaybackVolume={setStoryPlaybackVolume}
-            generationMode={generationMode}
-            setGenerationMode={setGenerationMode}
+            speakerConfigs={speakerConfigs} onSpeakerConfigChange={handleSpeakerConfigChange}
+            onPreviewLine={(l) => generateSingleLineSpeech(`${constructFullPrefix(speakerConfigs.get(l.speaker)!)} ${l.text}`, speakerConfigs.get(l.speaker)?.voice || 'Kore', speakerConfigs.get(l.speaker)?.seed).then(b => b && playAudio(b))}
+            onPreviewSpeaker={(s) => generateMultiLineSpeech(dialogueLines.filter(l => l.speaker === s), new Map([[s, { ...speakerConfigs.get(s)!, promptPrefix: constructFullPrefix(speakerConfigs.get(s)!) }]]), (m) => setGenerationStatus(m)).then(b => b && playAudio(b))}
+            dialogueLines={dialogueLines} onGenerateFullStory={handleGenerateFullStory} isGenerating={isGenerating}
+            generatedAudio={generatedStoryAudio} generatedSpeakerAudio={generatedSpeakerAudio}
+            onDownload={() => generatedStoryAudio && downloadAudio(generatedStoryAudio, `Story_Master_${Date.now()}`)}
+            onDownloadSpeakerFile={(s) => generatedSpeakerAudio.get(s) && downloadAudio(generatedSpeakerAudio.get(s)!, `Voice_${s}`)}
+            onPlayFullStory={handlePlayFullStory} onStopFullStory={stopAudio} isPlaying={isPlaying}
+            onOpenLibrary={() => setIsLibraryModalOpen(true)} onCloneVoice={(s) => { setActiveSpeakerForClone(s); setIsCloneModalOpen(true); }}
+            allVoices={allVoices} storyPlaybackSpeed={storyPlaybackSpeed} setStoryPlaybackSpeed={setStoryPlaybackSpeed}
+            storyPlaybackVolume={storyPlaybackVolume} setStoryPlaybackVolume={setStoryPlaybackVolume}
+            generationMode={generationMode} setGenerationMode={setGenerationMode}
           />
         </main>
       </div>
 
       {isGenerating && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-              <div className="bg-gray-900 border border-emerald-500/30 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl space-y-4">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+              <div className="bg-gray-900 border border-emerald-500/30 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl space-y-6 animate-fade-in">
                   <div className="relative inline-block">
                     <LoadingSpinner className="w-16 h-16 text-emerald-500" />
                     <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-emerald-300">AI</div>
                   </div>
-                  <h3 className="text-xl font-bold text-white">กำลังสร้างเสียงพากย์</h3>
-                  <div className="bg-black/40 rounded-lg p-3 border border-gray-800">
-                      <p className="text-emerald-400 font-mono text-sm animate-pulse">{generationStatus || "เริ่มกระบวนการ..."}</p>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-white">กำลังสร้างเสียงพากย์</h3>
+                    <div className="bg-black/40 rounded-lg p-3 border border-gray-800">
+                        <p className="text-emerald-400 font-mono text-sm animate-pulse">{generationStatus || "เริ่มกระบวนการ..."}</p>
+                    </div>
                   </div>
                   <p className="text-gray-400 text-xs leading-relaxed">
-                      แอปกำลังบริหารจัดการโควต้า API เพื่อรองรับไฟล์เสียงขนาดใหญ่ กรุณารอสักครู่...
+                      ระบบจะทำการจัดการโควต้าให้อัตโนมัติ (Rate Limiting) หากคิวเต็มระบบจะนับถอยหลังรอเพื่อให้งานเสร็จสมบูรณ์
                   </p>
+                  <button 
+                    onClick={() => { isAbortingRef.current = true; setIsGenerating(false); showToast("Cancelling..."); }}
+                    className="w-full bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/30 py-2 rounded-lg text-sm font-bold transition-all"
+                  >
+                    ยกเลิกการสร้างเสียง (Cancel)
+                  </button>
               </div>
           </div>
       )}
@@ -503,78 +349,38 @@ const App: React.FC = () => {
       {toastMessage && (
         <div className="fixed bottom-5 right-5 bg-gray-900 text-white py-3 px-4 rounded-xl shadow-2xl animate-fade-in-out z-50 border border-gray-700 flex items-center gap-3">
           <span className="flex-grow">{toastMessage}</span>
-          <button 
-            onClick={() => { handleCopyText(toastMessage); showToast("Message copied!"); }}
-            className="p-1.5 hover:bg-gray-700 rounded-md transition-colors text-gray-400"
-            title="Copy message"
-          >
-            <CopyIcon className="w-4 h-4" />
-          </button>
+          <button onClick={() => { handleCopyText(toastMessage); showToast("Copied!"); }} className="p-1.5 hover:bg-gray-700 rounded-md text-gray-400"><CopyIcon className="w-4 h-4" /></button>
         </div>
       )}
 
       {isCloneModalOpen && (
         <VoiceCloneModal 
             onClose={() => setIsCloneModalOpen(false)}
-            onSave={(newVoice) => {
-                const updated = [...customVoices, newVoice];
-                setCustomVoices(updated);
-                localStorage.setItem('tts-customVoices', JSON.stringify(updated));
-                if (activeSpeakerForClone) {
-                    const conf = speakerConfigs.get(activeSpeakerForClone);
-                    if (conf) handleSpeakerConfigChange(activeSpeakerForClone, { ...conf, voice: newVoice.id });
-                }
-                setIsCloneModalOpen(false);
-            }}
-            onPreview={async (voice) => {
-                const blob = await generateSingleLineSpeech(`Voice cloning profile successfully established for ${voice.name}. Ready for synthesis.`, voice.baseVoiceId!);
-                if (blob) playAudio(blob);
-            }}
+            onSave={(nv) => { const updated = [...customVoices, nv]; setCustomVoices(updated); localStorage.setItem('tts-customVoices', JSON.stringify(updated)); if (activeSpeakerForClone) handleSpeakerConfigChange(activeSpeakerForClone, { ...speakerConfigs.get(activeSpeakerForClone)!, voice: nv.id }); setIsCloneModalOpen(false); }}
+            onPreview={async (v) => generateSingleLineSpeech("Voice DNA analyzed and successfully cloned.", v.baseVoiceId!).then(b => b && playAudio(b))}
             speakerName={activeSpeakerForClone}
         />
       )}
 
       {isLibraryModalOpen && (
         <VoiceLibraryModal
-            onClose={() => setIsLibraryModalOpen(false)}
-            customVoices={customVoices}
-            onUpdate={(updated) => {
-                setCustomVoices(updated);
-                localStorage.setItem('tts-customVoices', JSON.stringify(updated));
-            }}
-            onPreview={async (voice) => {
-                const blob = await generateSingleLineSpeech(`Selecting voice profile ${voice.name} from the library. Consistency check initiated.`, voice.baseVoiceId!);
-                if (blob) playAudio(blob);
-            }}
+            onClose={() => setIsLibraryModalOpen(false)} customVoices={customVoices}
+            onUpdate={(u) => { setCustomVoices(u); localStorage.setItem('tts-customVoices', JSON.stringify(u)); }}
+            onPreview={async (v) => generateSingleLineSpeech(`Previewing voice ${v.name}.`, v.baseVoiceId!).then(b => b && playAudio(b))}
         />
       )}
 
       {infoModal && (
         <Modal title={infoModal.title} onClose={() => setInfoModal(null)}>
           <div className="space-y-4">
-            <div className={`p-4 rounded-lg border max-h-64 overflow-y-auto ${
-                infoModal.type === 'error' ? 'bg-red-900/20 border-red-800' :
-                infoModal.type === 'success' ? 'bg-emerald-900/20 border-emerald-800' :
-                'bg-gray-900 border-gray-700'
-            }`}>
+            <div className={`p-4 rounded-lg border max-h-64 overflow-y-auto ${infoModal.type === 'error' ? 'bg-red-900/20 border-red-800' : infoModal.type === 'success' ? 'bg-emerald-900/20 border-emerald-800' : 'bg-gray-900 border-gray-700'}`}>
               <p className="text-gray-200 leading-relaxed whitespace-pre-wrap">{infoModal.content}</p>
             </div>
             <div className="flex justify-end gap-3">
-              <button
-                onClick={() => handleCopyText(infoModal.content)}
-                className={`flex items-center gap-2 font-bold py-2 px-4 rounded-lg transition-all ${
-                  copySuccess ? "bg-teal-600 text-white" : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                }`}
-              >
-                <CopyIcon className="w-5 h-5" />
-                {copySuccess ? "Copied!" : "Copy Content"}
+              <button onClick={() => handleCopyText(infoModal.content)} className={`flex items-center gap-2 font-bold py-2 px-4 rounded-lg transition-all ${copySuccess ? "bg-teal-600 text-white" : "bg-indigo-600 hover:bg-indigo-700 text-white"}`}>
+                <CopyIcon className="w-5 h-5" /> {copySuccess ? "Copied!" : "Copy Content"}
               </button>
-              <button
-                onClick={() => setInfoModal(null)}
-                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-              >
-                Close
-              </button>
+              <button onClick={() => setInfoModal(null)} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Close</button>
             </div>
           </div>
         </Modal>

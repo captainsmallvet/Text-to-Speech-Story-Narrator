@@ -61,14 +61,17 @@ const splitTextSafely = (text: string, maxLength: number): string[] => {
   return chunks;
 };
 
-// Enhanced Internal function with Smart Quota Handling
+// Enhanced Internal function with Daily Quota Detection
 const callGeminiTTS = async (
     text: string, 
     voice: string, 
     seed?: number, 
     attempt: number = 1,
-    onStatusUpdate?: (msg: string) => void
+    onStatusUpdate?: (msg: string) => void,
+    checkAborted?: () => boolean
 ): Promise<Uint8Array | null> => {
+    if (checkAborted && checkAborted()) throw new Error("USER_ABORTED");
+
     const ai = getAi();
     try {
         const response = await ai.models.generateContent({
@@ -95,27 +98,37 @@ const callGeminiTTS = async (
         
         // Handle RESOURCE_EXHAUSTED (Quota Exceeded)
         if (errorMsg.includes("RESOURCE_EXHAUSTED") || errorMsg.includes("429")) {
-            // Extract wait time if possible, default to 60s for safety in free tier
-            let waitTime = 60000;
+            let waitSeconds = 60;
             const match = errorMsg.match(/retry in ([\d.]+)s/i);
             if (match && match[1]) {
-                waitTime = (parseFloat(match[1]) + 2) * 1000; // Add 2s buffer
+                waitSeconds = Math.ceil(parseFloat(match[1])) + 2;
             }
             
-            if (onStatusUpdate) {
-                onStatusUpdate(`ติดขีดจำกัดความถี่ (Quota Limit)... กำลังรอ ${Math.ceil(waitTime/1000)} วินาที`);
+            // ตรวจสอบว่าเป็นโควต้ารายวันหรือไม่ (ถ้ารอนานเกิน 10 นาที)
+            if (waitSeconds > 600) {
+                const hours = (waitSeconds / 3600).toFixed(1);
+                throw new Error(`DAILY_QUOTA_EXCEEDED|${hours}`);
+            }
+
+            console.warn(`Quota exhausted. Waiting ${waitSeconds} seconds...`);
+            
+            // LIVE COUNTDOWN LOOP
+            for (let i = waitSeconds; i > 0; i--) {
+                if (checkAborted && checkAborted()) throw new Error("USER_ABORTED");
+                if (onStatusUpdate) {
+                    onStatusUpdate(`คิวเต็ม (Rate Limit)... รอเริ่มใหม่ใน ${i} วินาที`);
+                }
+                await delay(1000);
             }
             
-            console.warn(`Quota exhausted. Waiting ${waitTime}ms...`);
-            await delay(waitTime);
-            return callGeminiTTS(text, voice, seed, attempt, onStatusUpdate);
+            if (onStatusUpdate) onStatusUpdate("กำลังลองใหม่ทันที...");
+            return callGeminiTTS(text, voice, seed, attempt, onStatusUpdate, checkAborted);
         }
 
-        // Handle Internal Error 500 with normal retry
         if (attempt <= 3 && (errorMsg.includes("500") || errorMsg.includes("Internal Error"))) {
-            if (onStatusUpdate) onStatusUpdate(`เกิดข้อผิดพลาดที่ Server... กำลังลองใหม่รอบที่ ${attempt}`);
+            if (onStatusUpdate) onStatusUpdate(`Server ขัดข้อง... ลองใหม่รอบที่ ${attempt}/3`);
             await delay(attempt * 2000);
-            return callGeminiTTS(text, voice, seed, attempt + 1, onStatusUpdate);
+            return callGeminiTTS(text, voice, seed, attempt + 1, onStatusUpdate, checkAborted);
         }
 
         throw error;
@@ -133,12 +146,11 @@ export const generateSingleLineSpeech = async (text: string, voice: string, seed
 export const generateMultiLineSpeech = async (
   dialogueLines: DialogueLine[],
   speakerConfigs: Map<string, SpeakerConfig>,
-  onStatusUpdate?: (msg: string) => void
+  onStatusUpdate?: (msg: string) => void,
+  checkAborted?: () => boolean
 ): Promise<Blob | null> => {
   
   if (dialogueLines.length === 0) return null;
-  
-  // Increased to 2500 to stay under 10 Requests Per Minute (RPM) for long stories
   const MAX_BATCH_CHARS = 2500; 
 
   try {
@@ -149,26 +161,26 @@ export const generateMultiLineSpeech = async (
     const totalChars = dialogueLines.reduce((acc, l) => acc + l.text.length, 0);
     
     const processBatch = async (text: string, speaker: string) => {
+        if (checkAborted && checkAborted()) throw new Error("USER_ABORTED");
         if (!speaker || !text.trim()) return;
         
         const config = speakerConfigs.get(speaker);
         if (config) {
-            if (onStatusUpdate) {
-                const percent = Math.round((processedChars / totalChars) * 100);
-                onStatusUpdate(`กำลังสร้างเสียง: ${speaker} (${percent}%)`);
-            }
+            const percent = Math.round((processedChars / totalChars) * 100);
+            if (onStatusUpdate) onStatusUpdate(`กำลังพากย์เสียง: ${speaker} (${percent}%)`);
             
             const textToSpeak = `${config.promptPrefix} ${text}`.trim();
-            const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, 1, onStatusUpdate);
+            const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, 1, onStatusUpdate, checkAborted);
             if (pcm) {
                 audioChunks.push(pcm);
                 processedChars += text.length;
-                await delay(500); // Small gap for stability
+                await delay(300);
             }
         }
     };
 
     for (const line of dialogueLines) {
+        if (checkAborted && checkAborted()) throw new Error("USER_ABORTED");
         const isNewSpeaker = line.speaker !== currentSpeaker;
         if (isNewSpeaker) {
             if (currentSpeaker && currentBatchText) {
@@ -179,7 +191,6 @@ export const generateMultiLineSpeech = async (
         }
         
         const combinedText = (currentBatchText + " " + line.text).trim();
-        
         if (combinedText.length <= MAX_BATCH_CHARS) {
             currentBatchText = combinedText;
         } else {
@@ -187,15 +198,9 @@ export const generateMultiLineSpeech = async (
                 await processBatch(currentBatchText, currentSpeaker!);
                 currentBatchText = "";
             }
-            
             const lineChunks = splitTextSafely(line.text, MAX_BATCH_CHARS);
-            if (lineChunks.length === 1) {
-                currentBatchText = lineChunks[0];
-            } else {
-                for (let i = 0; i < lineChunks.length - 1; i++) {
-                    await processBatch(lineChunks[i], currentSpeaker!);
-                }
-                currentBatchText = lineChunks[lineChunks.length - 1];
+            for (let i = 0; i < lineChunks.length; i++) {
+                await processBatch(lineChunks[i], currentSpeaker!);
             }
         }
     }
@@ -205,11 +210,10 @@ export const generateMultiLineSpeech = async (
     }
     
     if (audioChunks.length === 0) return null;
-    if (onStatusUpdate) onStatusUpdate("รวมไฟล์เสียงเสร็จสิ้น...");
     return createWavBlob(audioChunks);
 
-  } catch (error) {
-    console.error("Error generating story audio:", error);
+  } catch (error: any) {
+    if (error.message === "USER_ABORTED") return null;
     throw error;
   }
 };
@@ -217,12 +221,14 @@ export const generateMultiLineSpeech = async (
 export const generateSeparateSpeakerSpeech = async (
   dialogueLines: DialogueLine[],
   speakerConfigs: Map<string, SpeakerConfig>,
-  onStatusUpdate?: (msg: string) => void
+  onStatusUpdate?: (msg: string) => void,
+  checkAborted?: () => boolean
 ): Promise<Map<string, Blob>> => {
   const speakerAudioMap = new Map<string, Blob>();
   const MAX_BATCH_CHARS = 2500; 
 
   for (const [speaker, config] of speakerConfigs.entries()) {
+    if (checkAborted && checkAborted()) throw new Error("USER_ABORTED");
     const lines = dialogueLines.filter(line => line.speaker === speaker);
     if (lines.length === 0) continue;
 
@@ -230,10 +236,11 @@ export const generateSeparateSpeakerSpeech = async (
     let currentBatchText = "";
 
     const processBatch = async (text: string) => {
+        if (checkAborted && checkAborted()) throw new Error("USER_ABORTED");
         if (!text.trim()) return;
-        if (onStatusUpdate) onStatusUpdate(`แยกไฟล์เสียง: ${speaker}...`);
+        if (onStatusUpdate) onStatusUpdate(`สร้างไฟล์แยก: ${speaker}...`);
         const textToSpeak = `${config.promptPrefix} ${text}`.trim();
-        const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, 1, onStatusUpdate);
+        const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, 1, onStatusUpdate, checkAborted);
         if (pcm) {
             audioChunks.push(pcm);
             await delay(300);
@@ -250,20 +257,14 @@ export const generateSeparateSpeakerSpeech = async (
                 currentBatchText = "";
             }
             const lineChunks = splitTextSafely(line.text, MAX_BATCH_CHARS);
-            for (let i = 0; i < lineChunks.length - 1; i++) {
+            for (let i = 0; i < lineChunks.length; i++) {
                 await processBatch(lineChunks[i]);
             }
-            currentBatchText = lineChunks[lineChunks.length - 1];
         }
     }
     
-    if (currentBatchText) {
-        await processBatch(currentBatchText);
-    }
-
-    if (audioChunks.length > 0) {
-        speakerAudioMap.set(speaker, createWavBlob(audioChunks));
-    }
+    if (currentBatchText) await processBatch(currentBatchText);
+    if (audioChunks.length > 0) speakerAudioMap.set(speaker, createWavBlob(audioChunks));
   }
   
   return speakerAudioMap;
