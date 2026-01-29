@@ -1,7 +1,6 @@
-
 import { GoogleGenAI, Modality } from "@google/genai";
 import type { DialogueLine, SpeakerConfig } from '../types';
-import { decode, createWavBlob, createSilentAudio } from '../utils/audio';
+import { decode, createWavBlob } from '../utils/audio';
 
 const getAi = () => {
   const savedKey = localStorage.getItem('gemini_api_key');
@@ -49,7 +48,7 @@ const callGeminiTTS = async (
     attempt: number = 1,
     onStatusUpdate?: (msg: string) => void,
     checkAborted?: () => boolean,
-    progressLabel: string = "" // Added to preserve context during retries
+    progressLabel: string = ""
 ): Promise<Uint8Array | null> => {
     if (checkAborted && checkAborted()) throw new Error("USER_ABORTED");
 
@@ -75,7 +74,6 @@ const callGeminiTTS = async (
     } catch (error: any) {
         const errorMsg = error.message || "";
         
-        // Handle Rate Limiting (429)
         if (errorMsg.includes("RESOURCE_EXHAUSTED") || errorMsg.includes("429")) {
             let waitSeconds = 60;
             const match = errorMsg.match(/retry in ([\d.]+)s/i);
@@ -86,7 +84,6 @@ const callGeminiTTS = async (
                 throw new Error(`DAILY_QUOTA_EXCEEDED|${hours}`);
             }
 
-            // Countdown while showing current progress context
             for (let i = waitSeconds; i > 0; i--) {
                 if (checkAborted && checkAborted()) throw new Error("USER_ABORTED");
                 if (onStatusUpdate) {
@@ -99,7 +96,6 @@ const callGeminiTTS = async (
             return callGeminiTTS(text, voice, seed, attempt, onStatusUpdate, checkAborted, progressLabel);
         }
 
-        // Handle Internal Server Errors (500)
         if (attempt <= 3 && (errorMsg.includes("500") || errorMsg.includes("Internal Error"))) {
             const retryMsg = `${progressLabel}\n\n⚠️ Server ขัดข้อง... กำลังลองใหม่รอบที่ ${attempt}/3`;
             if (onStatusUpdate) onStatusUpdate(retryMsg);
@@ -121,10 +117,10 @@ export const generateMultiLineSpeech = async (
   dialogueLines: DialogueLine[],
   speakerConfigs: Map<string, SpeakerConfig>,
   onStatusUpdate?: (msg: string) => void,
-  checkAborted?: () => boolean
+  checkAborted?: () => boolean,
+  maxCharsPerBatch: number = 2500
 ): Promise<Blob | null> => {
   if (dialogueLines.length === 0) return null;
-  const MAX_BATCH_CHARS = 2500; 
   const audioChunks: Uint8Array[] = [];
 
   try {
@@ -139,12 +135,9 @@ export const generateMultiLineSpeech = async (
         if (config) {
             const percent = Math.round((processedChars / totalChars) * 100);
             const snippet = text.length > 50 ? text.substring(0, 50) + "..." : text;
-            
             const progressLabel = `✅ งานที่เสร็จแล้ว: ${percent}%\n🔊 กำลังพากย์: ${speaker}\n📄 ข้อความถัดไป: "${snippet}"`;
             
-            if (onStatusUpdate) {
-                onStatusUpdate(progressLabel);
-            }
+            if (onStatusUpdate) onStatusUpdate(progressLabel);
             
             const textToSpeak = `${config.promptPrefix} ${text}`.trim();
             const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, 1, onStatusUpdate, checkAborted, progressLabel);
@@ -167,14 +160,14 @@ export const generateMultiLineSpeech = async (
             currentBatchText = "";
         }
         const combinedText = (currentBatchText + " " + line.text).trim();
-        if (combinedText.length <= MAX_BATCH_CHARS) {
+        if (combinedText.length <= maxCharsPerBatch) {
             currentBatchText = combinedText;
         } else {
             if (currentBatchText) {
                 await processBatch(currentBatchText, currentSpeaker!);
                 currentBatchText = "";
             }
-            const lineChunks = splitTextSafely(line.text, MAX_BATCH_CHARS);
+            const lineChunks = splitTextSafely(line.text, maxCharsPerBatch);
             for (let i = 0; i < lineChunks.length; i++) {
                 await processBatch(lineChunks[i], currentSpeaker!);
             }
@@ -199,10 +192,10 @@ export const generateSeparateSpeakerSpeech = async (
   dialogueLines: DialogueLine[],
   speakerConfigs: Map<string, SpeakerConfig>,
   onStatusUpdate?: (msg: string) => void,
-  checkAborted?: () => boolean
+  checkAborted?: () => boolean,
+  maxCharsPerBatch: number = 2500
 ): Promise<Map<string, Blob>> => {
   const speakerAudioMap = new Map<string, Blob>();
-  const MAX_BATCH_CHARS = 2500; 
 
   try {
     for (const [speaker, config] of speakerConfigs.entries()) {
@@ -231,14 +224,14 @@ export const generateSeparateSpeakerSpeech = async (
       for (const line of lines) {
           if (checkAborted && checkAborted()) break;
           const combinedText = (currentBatchText + " " + line.text).trim();
-          if (combinedText.length <= MAX_BATCH_CHARS) {
+          if (combinedText.length <= maxCharsPerBatch) {
               currentBatchText = combinedText;
           } else {
               if (currentBatchText) {
                   await processBatch(currentBatchText);
                   currentBatchText = "";
               }
-              const lineChunks = splitTextSafely(line.text, MAX_BATCH_CHARS);
+              const lineChunks = splitTextSafely(line.text, maxCharsPerBatch);
               for (let i = 0; i < lineChunks.length; i++) {
                   await processBatch(lineChunks[i]);
               }

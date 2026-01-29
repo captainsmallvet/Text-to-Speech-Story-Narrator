@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ScriptEditor from './components/ScriptEditor';
 import VoiceSettings from './components/VoiceSettings';
@@ -11,8 +10,8 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.6.0 (Partial Recovery)";
-const LAST_UPDATED = "Nov 20, 2025 17:15";
+const APP_VERSION = "v1.7.0 (Custom Batch Size)";
+const LAST_UPDATED = "Nov 20, 2025 18:00";
 const DEFAULT_SEED = 949222;
 
 const App: React.FC = () => {
@@ -58,6 +57,7 @@ const App: React.FC = () => {
   const [activeSpeakerForClone, setActiveSpeakerForClone] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [textModelId, setTextModelId] = useState<string>(TEXT_MODELS[0].id);
+  const [maxCharsPerBatch, setMaxCharsPerBatch] = useState<number>(2500);
 
   const allVoices = useMemo(() => [...AVAILABLE_VOICES, ...customVoices], [customVoices]);
 
@@ -87,9 +87,14 @@ const App: React.FC = () => {
     const savedConfigs = localStorage.getItem('tts-speakerConfigs');
     const savedCustomVoices = localStorage.getItem('tts-customVoices');
     const savedTextModelId = localStorage.getItem('tts-textModelId');
+    const savedMaxChars = localStorage.getItem('tts-maxCharsPerBatch');
+
     if (savedScript) setScriptText(savedScript);
     else setScriptText(EXAMPLE_SCRIPT);
+    
     if (savedTextModelId) setTextModelId(savedTextModelId);
+    if (savedMaxChars) setMaxCharsPerBatch(parseInt(savedMaxChars) || 2500);
+
     if (savedConfigs) {
       try {
         const parsedConfigs: [string, any][] = JSON.parse(savedConfigs) as any;
@@ -164,6 +169,7 @@ const App: React.FC = () => {
     localStorage.setItem('tts-speakerConfigs', JSON.stringify(Array.from(speakerConfigs.entries())));
     localStorage.setItem('tts-customVoices', JSON.stringify(customVoices));
     localStorage.setItem('tts-textModelId', textModelId);
+    localStorage.setItem('tts-maxCharsPerBatch', maxCharsPerBatch.toString());
     showToast("Progress saved successfully!");
   };
 
@@ -200,14 +206,14 @@ const App: React.FC = () => {
     try {
         const checkAborted = () => isAbortingRef.current;
         if (generationMode === 'combined') {
-            const audioBlob = await generateMultiLineSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg), checkAborted);
+            const audioBlob = await generateMultiLineSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg), checkAborted, maxCharsPerBatch);
             if (audioBlob) {
                 setGeneratedStoryAudio(audioBlob);
                 if (isAbortingRef.current) showToast("Stopped! Partial audio saved.");
                 else showToast("Full audio generated!");
             }
         } else {
-            const speakerAudioMap = await generateSeparateSpeakerSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg), checkAborted);
+            const speakerAudioMap = await generateSeparateSpeakerSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg), checkAborted, maxCharsPerBatch);
             if (speakerAudioMap && speakerAudioMap.size > 0) {
                 setGeneratedSpeakerAudio(speakerAudioMap);
                 if (isAbortingRef.current) showToast("Stopped! Partial speaker files saved.");
@@ -308,7 +314,7 @@ const App: React.FC = () => {
           <VoiceSettings
             speakerConfigs={speakerConfigs} onSpeakerConfigChange={handleSpeakerConfigChange}
             onPreviewLine={(l) => generateSingleLineSpeech(`${constructFullPrefix(speakerConfigs.get(l.speaker)!)} ${l.text}`, speakerConfigs.get(l.speaker)?.voice || 'Kore', speakerConfigs.get(l.speaker)?.seed).then(b => b && playAudio(b))}
-            onPreviewSpeaker={(s) => generateMultiLineSpeech(dialogueLines.filter(l => l.speaker === s), new Map([[s, { ...speakerConfigs.get(s)!, promptPrefix: constructFullPrefix(speakerConfigs.get(s)!) }]]), (m) => setGenerationStatus(m)).then(b => b && playAudio(b))}
+            onPreviewSpeaker={(s) => generateMultiLineSpeech(dialogueLines.filter(l => l.speaker === s), new Map([[s, { ...speakerConfigs.get(s)!, promptPrefix: constructFullPrefix(speakerConfigs.get(s)!) }]]), (m) => setGenerationStatus(m), undefined, maxCharsPerBatch).then(b => b && playAudio(b))}
             dialogueLines={dialogueLines} onGenerateFullStory={handleGenerateFullStory} isGenerating={isGenerating}
             generatedAudio={generatedStoryAudio} generatedSpeakerAudio={generatedSpeakerAudio}
             onDownload={() => generatedStoryAudio && downloadAudio(generatedStoryAudio, `Story_Master_${Date.now()}`)}
@@ -318,6 +324,7 @@ const App: React.FC = () => {
             allVoices={allVoices} storyPlaybackSpeed={storyPlaybackSpeed} setStoryPlaybackSpeed={setStoryPlaybackSpeed}
             storyPlaybackVolume={storyPlaybackVolume} setStoryPlaybackVolume={setStoryPlaybackVolume}
             generationMode={generationMode} setGenerationMode={setGenerationMode}
+            maxCharsPerBatch={maxCharsPerBatch} setMaxCharsPerBatch={setMaxCharsPerBatch}
           />
         </main>
       </div>
