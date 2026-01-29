@@ -11,8 +11,8 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.5.6 (Sync Fixed)";
-const LAST_UPDATED = "Nov 20, 2025 16:00";
+const APP_VERSION = "v1.6.0 (Partial Recovery)";
+const LAST_UPDATED = "Nov 20, 2025 17:15";
 const DEFAULT_SEED = 949222;
 
 const App: React.FC = () => {
@@ -124,7 +124,6 @@ const App: React.FC = () => {
     const newDialogueLines: DialogueLine[] = [];
     const newSpeakers = new Set<string>();
     let lastSpeaker: string | null = null;
-
     lines.forEach((line, index) => {
       const trimmedLine = line.trim();
       if (trimmedLine === '') return;
@@ -137,33 +136,20 @@ const App: React.FC = () => {
         newSpeakers.add(currentSpeaker);
       }
     });
-
     setDialogueLines(newDialogueLines);
-
-    // Sync Speaker Configs: Add new, Keep existing, Remove obsolete
     setSpeakerConfigs(prevConfigs => {
       const newConfigs = new Map<string, SpeakerConfig>();
       let voiceIndex = 0;
-
-      // Iterate through the newly discovered speakers in the script
       newSpeakers.forEach(speaker => {
-        if (prevConfigs.has(speaker)) {
-          // Keep existing configuration for this speaker
-          newConfigs.set(speaker, prevConfigs.get(speaker)!);
-        } else {
-          // Initialize a default config for the new speaker
+        if (prevConfigs.has(speaker)) newConfigs.set(speaker, prevConfigs.get(speaker)!);
+        else {
           newConfigs.set(speaker, {
             voice: AVAILABLE_VOICES[voiceIndex % AVAILABLE_VOICES.length].id,
-            promptPrefix: '',
-            emotion: 'none',
-            volume: 1,
-            speed: 'normal',
-            seed: DEFAULT_SEED,
+            promptPrefix: '', emotion: 'none', volume: 1, speed: 'normal', seed: DEFAULT_SEED,
           });
         }
         voiceIndex++;
       });
-      
       return newConfigs;
     });
   }, [scriptText]);
@@ -217,21 +203,22 @@ const App: React.FC = () => {
             const audioBlob = await generateMultiLineSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg), checkAborted);
             if (audioBlob) {
                 setGeneratedStoryAudio(audioBlob);
-                showToast("Full audio generated!");
+                if (isAbortingRef.current) showToast("Stopped! Partial audio saved.");
+                else showToast("Full audio generated!");
             }
         } else {
             const speakerAudioMap = await generateSeparateSpeakerSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg), checkAborted);
             if (speakerAudioMap && speakerAudioMap.size > 0) {
                 setGeneratedSpeakerAudio(speakerAudioMap);
-                showToast("Speaker files ready!");
+                if (isAbortingRef.current) showToast("Stopped! Partial speaker files saved.");
+                else showToast("Speaker files ready!");
             }
         }
     } catch (error: any) {
-        console.error(error);
         if (error.message.startsWith("DAILY_QUOTA_EXCEEDED")) {
             const hours = error.message.split('|')[1];
             showInfoModal("โควต้ารายวันหมดแล้ว", `โควต้า Google Gemini ของคุณหมดลงแล้วสำหรับวันนี้ กรุณารอประมาณ ${hours} ชั่วโมง หรือเปลี่ยนไปใช้ API Key ชุดอื่นครับ`, 'error');
-        } else if (error.message !== "USER_ABORTED") {
+        } else {
             showInfoModal("เกิดข้อผิดพลาด", `ระบบหยุดทำงาน: ${error.message}`, 'error');
         }
     } finally {
@@ -337,25 +324,27 @@ const App: React.FC = () => {
 
       {isGenerating && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-              <div className="bg-gray-900 border border-emerald-500/30 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl space-y-6 animate-fade-in">
+              <div className="bg-gray-900 border border-emerald-500/30 rounded-2xl p-8 max-w-lg w-full text-center shadow-2xl space-y-6 animate-fade-in">
                   <div className="relative inline-block">
                     <LoadingSpinner className="w-16 h-16 text-emerald-500" />
                     <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-emerald-300">AI</div>
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-white">กำลังสร้างเสียงพากย์</h3>
-                    <div className="bg-black/40 rounded-lg p-3 border border-gray-800">
-                        <p className="text-emerald-400 font-mono text-sm animate-pulse">{generationStatus || "เริ่มกระบวนการ..."}</p>
+                    <h3 className="text-xl font-bold text-white">ระบบกำลังประมวลผลเสียง</h3>
+                    <div className="bg-black/40 rounded-lg p-4 border border-gray-800 text-left min-h-[100px] flex flex-col justify-center">
+                        <p className="text-emerald-400 font-mono text-sm whitespace-pre-line leading-relaxed">
+                            {generationStatus || "กำลังเตรียมพากย์เสียง..."}
+                        </p>
                     </div>
                   </div>
                   <p className="text-gray-400 text-xs leading-relaxed">
-                      ระบบจะทำการจัดการโควต้าให้อัตโนมัติ (Rate Limiting) หากคิวเต็มระบบจะนับถอยหลังรอเพื่อให้งานเสร็จสมบูรณ์
+                      * คุณสามารถกดหยุดเพื่อบันทึกไฟล์เสียงเฉพาะส่วนที่สร้างเสร็จแล้วได้ทันที
                   </p>
                   <button 
-                    onClick={() => { isAbortingRef.current = true; setIsGenerating(false); showToast("Cancelling..."); }}
-                    className="w-full bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/30 py-2 rounded-lg text-sm font-bold transition-all"
+                    onClick={() => { isAbortingRef.current = true; }}
+                    className="w-full bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white border border-orange-500/30 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2"
                   >
-                    ยกเลิกการสร้างเสียง (Cancel)
+                    <span>⏹ หยุดและเก็บส่วนที่เสร็จแล้ว (Finish Partial)</span>
                   </button>
               </div>
           </div>
