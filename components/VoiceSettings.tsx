@@ -155,7 +155,7 @@ const VoiceSettings: React.FC<VoiceSettingsProps> = ({
             className="w-full bg-black border border-gray-700 rounded px-2 py-1 text-sm font-mono text-white outline-none focus:border-indigo-500 transition-colors"
           />
           <p className="text-[10px] text-gray-500 mt-1 leading-tight">
-            * Recommended: 2,500. Max: 5,000. 
+            * Recommended: 4,500. Max: 5,000. 
             <br/>Larger batches process faster but may fail due to API limits or timeouts.
           </p>
         </div>

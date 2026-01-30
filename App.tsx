@@ -10,8 +10,8 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.7.1 (Status Copy Support)";
-const LAST_UPDATED = "Nov 20, 2025 18:30";
+const APP_VERSION = "v1.7.2 (Custom Batch Optimized)";
+const LAST_UPDATED = "Nov 20, 2025 18:45";
 const DEFAULT_SEED = 949222;
 
 const App: React.FC = () => {
@@ -58,7 +58,7 @@ const App: React.FC = () => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [statusCopySuccess, setStatusCopySuccess] = useState(false);
   const [textModelId, setTextModelId] = useState<string>(TEXT_MODELS[0].id);
-  const [maxCharsPerBatch, setMaxCharsPerBatch] = useState<number>(2500);
+  const [maxCharsPerBatch, setMaxCharsPerBatch] = useState<number>(4500);
 
   const allVoices = useMemo(() => [...AVAILABLE_VOICES, ...customVoices], [customVoices]);
 
@@ -94,7 +94,7 @@ const App: React.FC = () => {
     else setScriptText(EXAMPLE_SCRIPT);
     
     if (savedTextModelId) setTextModelId(savedTextModelId);
-    if (savedMaxChars) setMaxCharsPerBatch(parseInt(savedMaxChars) || 2500);
+    if (savedMaxChars) setMaxCharsPerBatch(parseInt(savedMaxChars) || 4500);
 
     if (savedConfigs) {
       try {

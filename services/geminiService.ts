@@ -118,7 +118,7 @@ export const generateMultiLineSpeech = async (
   speakerConfigs: Map<string, SpeakerConfig>,
   onStatusUpdate?: (msg: string) => void,
   checkAborted?: () => boolean,
-  maxCharsPerBatch: number = 2500
+  maxCharsPerBatch: number = 4500
 ): Promise<Blob | null> => {
   if (dialogueLines.length === 0) return null;
   const audioChunks: Uint8Array[] = [];
@@ -193,7 +193,7 @@ export const generateSeparateSpeakerSpeech = async (
   speakerConfigs: Map<string, SpeakerConfig>,
   onStatusUpdate?: (msg: string) => void,
   checkAborted?: () => boolean,
-  maxCharsPerBatch: number = 2500
+  maxCharsPerBatch: number = 4500
 ): Promise<Map<string, Blob>> => {
   const speakerAudioMap = new Map<string, Blob>();
 
