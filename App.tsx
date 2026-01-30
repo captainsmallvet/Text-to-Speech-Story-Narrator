@@ -291,7 +291,7 @@ const App: React.FC = () => {
               <div className="flex gap-2 w-full sm:w-auto">
                 <button onClick={handleSendKey} className="flex-1 bg-emerald-600 px-4 py-2 rounded text-xs font-bold hover:bg-emerald-700 transition-colors">SEND</button>
                 <button onClick={() => { handleCopyText(inputKey); showToast("Key Copied!"); }} className="flex-1 bg-blue-600 px-4 py-2 rounded text-xs font-bold">COPY</button>
-                <button onClick={() => { localStorage.removeItem('gemini_api_key'); setInputKey('no API key'); showToast("Key Cleared!"); }} className="flex-1 bg-red-600 px-4 py-2 rounded text-xs font-bold">CLEAR</button>
+                <button onClick={() => { localStorage.removeItem('gemini_api_key'); setInputKey(''); showToast("Key Cleared!"); }} className="flex-1 bg-red-600 px-4 py-2 rounded text-xs font-bold">CLEAR</button>
               </div>
             </div>
           </div>
