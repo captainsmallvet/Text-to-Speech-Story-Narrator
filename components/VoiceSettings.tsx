@@ -29,6 +29,8 @@ interface VoiceSettingsProps {
   setGenerationMode: (mode: 'combined' | 'separate') => void;
   maxCharsPerBatch: number;
   setMaxCharsPerBatch: (val: number) => void;
+  interBatchDelay: number;
+  setInterBatchDelay: (val: number) => void;
 }
 
 const VoiceSettings: React.FC<VoiceSettingsProps> = ({
@@ -57,6 +59,8 @@ const VoiceSettings: React.FC<VoiceSettingsProps> = ({
   setGenerationMode,
   maxCharsPerBatch,
   setMaxCharsPerBatch,
+  interBatchDelay,
+  setInterBatchDelay,
 }) => {
   const speakers = Array.from(speakerConfigs.keys());
 
@@ -64,6 +68,11 @@ const VoiceSettings: React.FC<VoiceSettingsProps> = ({
     let val = parseInt(e.target.value) || 0;
     if (val > 5000) val = 5000;
     setMaxCharsPerBatch(val);
+  };
+
+  const handleDelayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = parseInt(e.target.value) || 0;
+    setInterBatchDelay(val);
   };
 
   return (
@@ -137,28 +146,45 @@ const VoiceSettings: React.FC<VoiceSettingsProps> = ({
           )}
         </button>
 
-        <div className="bg-gray-900/60 p-3 rounded-lg border border-gray-700/50">
-          <div className="flex items-center justify-between mb-1">
-            <label htmlFor="batch-chars" className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-              Characters per request (Batch Size)
-            </label>
-            <span className="text-xs font-mono text-emerald-400">{maxCharsPerBatch.toLocaleString()} chars</span>
-          </div>
-          <input
-            id="batch-chars"
-            type="number"
-            min="100"
-            max="5000"
-            step="100"
-            value={maxCharsPerBatch}
-            onChange={handleMaxCharsChange}
-            className="w-full bg-black border border-gray-700 rounded px-2 py-1 text-sm font-mono text-white outline-none focus:border-indigo-500 transition-colors"
-          />
-          <p className="text-[10px] text-gray-500 mt-1 leading-tight">
-            * Recommended: 4,500. Max: 5,000. 
-            <br/>Larger batches process faster but may fail due to API limits or timeouts.
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="bg-gray-900/60 p-3 rounded-lg border border-gray-700/50">
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="batch-chars" className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Batch Size (Chars)
+                </label>
+              </div>
+              <input
+                id="batch-chars"
+                type="number"
+                min="100"
+                max="5000"
+                step="100"
+                value={maxCharsPerBatch}
+                onChange={handleMaxCharsChange}
+                className="w-full bg-black border border-gray-700 rounded px-2 py-1 text-sm font-mono text-emerald-400 outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
+            <div className="bg-gray-900/60 p-3 rounded-lg border border-gray-700/50">
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="batch-delay" className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Inter-batch Delay (Sec)
+                </label>
+              </div>
+              <input
+                id="batch-delay"
+                type="number"
+                min="0"
+                max="600"
+                step="5"
+                value={interBatchDelay}
+                onChange={handleDelayChange}
+                className="w-full bg-black border border-gray-700 rounded px-2 py-1 text-sm font-mono text-amber-400 outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
         </div>
+        <p className="text-[10px] text-gray-500 leading-tight px-1">
+          * แนะนำ: 4,500 ตัวอักษร และเว้นระยะ 120 วินาที เพื่อรักษาเสถียรภาพของคุณภาพเสียงในแต่ละชุด (ระบบจะสุ่มบวกเพิ่ม 1-10s อัตโนมัติ)
+        </p>
 
         {generatedAudio && (
           <div className="space-y-3 bg-gray-900/50 p-3 rounded-lg border border-gray-700 animate-fade-in">

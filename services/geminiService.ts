@@ -56,7 +56,6 @@ const callGeminiTTS = async (
 
     const ai = getAi();
     try {
-        // อัปเกรดคำสั่งเพื่อแก้ปัญหาเสียงแหลม (Sibilance/Piercing Highs)
         const toneToUse = tone || DEFAULT_TONE;
         const qualityReinforcement = `Synthesize this in a professional, mellow broadcast style. Tone description: ${toneToUse}. Ensure the audio is smooth, warm, and non-fatiguing, with controlled high frequencies to avoid piercing or sibilant artifacts. Maintain a perfectly consistent pace.`;
         
@@ -121,12 +120,34 @@ export const generateSingleLineSpeech = async (text: string, voice: string, seed
     return null;
 };
 
+const handleInterBatchWait = async (
+    waitTimeSec: number, 
+    processedChars: number, 
+    totalChars: number, 
+    nextSnippet: string,
+    onStatusUpdate?: (msg: string) => void,
+    checkAborted?: () => boolean
+) => {
+    const jitter = Math.floor(Math.random() * 10) + 1;
+    const totalWait = waitTimeSec + jitter;
+    const percent = Math.round((processedChars / totalChars) * 100);
+
+    for (let i = totalWait; i > 0; i--) {
+        if (checkAborted && checkAborted()) return;
+        if (onStatusUpdate) {
+            onStatusUpdate(`✅ งานที่เสร็จแล้ว: ${percent}%\n⏳ กำลังพักรอบ (Inter-batch Delay)... เหลือเวลา ${i} วินาที\n(สุ่มเพิ่ม +${jitter}s เพื่อความเสถียร)\n\n📄 ข้อความชุดถัดไป: "${nextSnippet}"`);
+        }
+        await delay(1000);
+    }
+};
+
 export const generateMultiLineSpeech = async (
   dialogueLines: DialogueLine[],
   speakerConfigs: Map<string, SpeakerConfig>,
   onStatusUpdate?: (msg: string) => void,
   checkAborted?: () => boolean,
-  maxCharsPerBatch: number = 4500
+  maxCharsPerBatch: number = 4500,
+  interBatchDelaySec: number = 120
 ): Promise<Blob | null> => {
   if (dialogueLines.length === 0) return null;
   const audioChunks: Uint8Array[] = [];
@@ -137,13 +158,13 @@ export const generateMultiLineSpeech = async (
     let processedChars = 0;
     const totalChars = dialogueLines.reduce((acc, l) => acc + l.text.length, 0);
     
-    const processBatch = async (text: string, speaker: string) => {
+    const processBatch = async (text: string, speaker: string, isLastBatch: boolean = false) => {
         if (!speaker || !text.trim()) return;
         const config = speakerConfigs.get(speaker);
         if (config) {
             const percent = Math.round((processedChars / totalChars) * 100);
             const snippet = text.length > 50 ? text.substring(0, 50) + "..." : text;
-            const progressLabel = `✅ งานที่เสร็จแล้ว: ${percent}%\n🔊 กำลังพากย์: ${speaker}\n📄 ข้อความถัดไป: "${snippet}"`;
+            const progressLabel = `✅ งานที่เสร็จแล้ว: ${percent}%\n🔊 กำลังพากย์: ${speaker}\n📄 ข้อความปัจจุบัน: "${snippet}"`;
             
             if (onStatusUpdate) onStatusUpdate(progressLabel);
             
@@ -152,38 +173,65 @@ export const generateMultiLineSpeech = async (
             if (pcm) {
                 audioChunks.push(pcm);
                 processedChars += text.length;
-                await delay(2000);
+                
+                if (!isLastBatch) {
+                    const linesLeft = dialogueLines.filter(l => !audioChunks.includes(new Uint8Array())); // Simplified check
+                    // Note: This logic for "next snippet" needs to be accurate.
+                    // For simplicity, we just pass the next available snippet if we have it.
+                    await handleInterBatchWait(interBatchDelaySec, processedChars, totalChars, "กำลังโหลดชุดถัดไป...", onStatusUpdate, checkAborted);
+                }
             }
         }
     };
 
+    // Correcting the loop to handle batches better with delays
+    const batches: {text: string, speaker: string}[] = [];
+    let tempSpeaker: string | null = null;
+    let tempText = "";
+
     for (const line of dialogueLines) {
-        if (checkAborted && checkAborted()) throw new Error("USER_ABORTED");
-        const isNewSpeaker = line.speaker !== currentSpeaker;
-        if (isNewSpeaker) {
-            if (currentSpeaker && currentBatchText) {
-                await processBatch(currentBatchText, currentSpeaker);
+        if (line.speaker !== tempSpeaker || (tempText + " " + line.text).length > maxCharsPerBatch) {
+            if (tempSpeaker && tempText) batches.push({text: tempText, speaker: tempSpeaker});
+            tempSpeaker = line.speaker;
+            tempText = line.text;
+            
+            if (tempText.length > maxCharsPerBatch) {
+                const lineChunks = splitTextSafely(tempText, maxCharsPerBatch);
+                for(let i=0; i < lineChunks.length - 1; i++) {
+                    batches.push({text: lineChunks[i], speaker: tempSpeaker});
+                }
+                tempText = lineChunks[lineChunks.length - 1];
             }
-            currentSpeaker = line.speaker;
-            currentBatchText = "";
-        }
-        const combinedText = (currentBatchText + " " + line.text).trim();
-        if (combinedText.length <= maxCharsPerBatch) {
-            currentBatchText = combinedText;
         } else {
-            if (currentBatchText) {
-                await processBatch(currentBatchText, currentSpeaker!);
-                currentBatchText = "";
-            }
-            const lineChunks = splitTextSafely(line.text, maxCharsPerBatch);
-            for (let i = 0; i < lineChunks.length; i++) {
-                await processBatch(lineChunks[i], currentSpeaker!);
-            }
+            tempText = (tempText + " " + line.text).trim();
         }
     }
-    
-    if (currentSpeaker && currentBatchText) {
-        await processBatch(currentBatchText, currentSpeaker);
+    if (tempSpeaker && tempText) batches.push({text: tempText, speaker: tempSpeaker});
+
+    for (let i = 0; i < batches.length; i++) {
+        if (checkAborted && checkAborted()) throw new Error("USER_ABORTED");
+        const batch = batches[i];
+        const isLast = i === batches.length - 1;
+        const nextSnippet = !isLast ? batches[i+1].text.substring(0, 50) + "..." : "สิ้นสุดการทำงาน";
+        
+        const config = speakerConfigs.get(batch.speaker);
+        if (config) {
+            const percent = Math.round((processedChars / totalChars) * 100);
+            const snippet = batch.text.length > 50 ? batch.text.substring(0, 50) + "..." : batch.text;
+            const progressLabel = `✅ งานที่เสร็จแล้ว: ${percent}%\n🔊 กำลังพากย์: ${batch.speaker}\n📄 ข้อความปัจจุบัน: "${snippet}"`;
+            
+            if (onStatusUpdate) onStatusUpdate(progressLabel);
+            
+            const textToSpeak = `${config.promptPrefix} ${batch.text}`.trim();
+            const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, config.toneDescription, 1, onStatusUpdate, checkAborted, progressLabel);
+            if (pcm) {
+                audioChunks.push(pcm);
+                processedChars += batch.text.length;
+                if (!isLast) {
+                    await handleInterBatchWait(interBatchDelaySec, processedChars, totalChars, nextSnippet, onStatusUpdate, checkAborted);
+                }
+            }
+        }
     }
     
     return audioChunks.length > 0 ? createWavBlob(audioChunks) : null;
@@ -201,52 +249,66 @@ export const generateSeparateSpeakerSpeech = async (
   speakerConfigs: Map<string, SpeakerConfig>,
   onStatusUpdate?: (msg: string) => void,
   checkAborted?: () => boolean,
-  maxCharsPerBatch: number = 4500
+  maxCharsPerBatch: number = 4500,
+  interBatchDelaySec: number = 120
 ): Promise<Map<string, Blob>> => {
   const speakerAudioMap = new Map<string, Blob>();
 
   try {
-    for (const [speaker, config] of speakerConfigs.entries()) {
+    const speakers = Array.from(speakerConfigs.keys());
+    for (let sIdx = 0; sIdx < speakers.length; sIdx++) {
+      const speaker = speakers[sIdx];
+      const config = speakerConfigs.get(speaker)!;
       if (checkAborted && checkAborted()) break;
       const lines = dialogueLines.filter(line => line.speaker === speaker);
       if (lines.length === 0) continue;
 
       const audioChunks: Uint8Array[] = [];
-      let currentBatchText = "";
+      const speakerBatches: string[] = [];
+      let tempText = "";
+      for(const line of lines) {
+          if ((tempText + " " + line.text).length > maxCharsPerBatch) {
+              if (tempText) speakerBatches.push(tempText);
+              tempText = line.text;
+              if (tempText.length > maxCharsPerBatch) {
+                  const lineChunks = splitTextSafely(tempText, maxCharsPerBatch);
+                  for(let i=0; i < lineChunks.length - 1; i++) speakerBatches.push(lineChunks[i]);
+                  tempText = lineChunks[lineChunks.length - 1];
+              }
+          } else {
+              tempText = (tempText + " " + line.text).trim();
+          }
+      }
+      if (tempText) speakerBatches.push(tempText);
 
-      const processBatch = async (text: string) => {
-          if (!text.trim()) return;
-          const snippet = text.length > 50 ? text.substring(0, 50) + "..." : text;
-          const progressLabel = `📂 สร้างไฟล์แยก: ${speaker}\n📄 ข้อความถัดไป: "${snippet}"`;
+      for (let bIdx = 0; bIdx < speakerBatches.length; bIdx++) {
+          if (checkAborted && checkAborted()) break;
+          const batchText = speakerBatches[bIdx];
+          const isLastBatchOverall = (sIdx === speakers.length - 1) && (bIdx === speakerBatches.length - 1);
+          
+          let nextSnippet = "เปลี่ยนตัวละครถัดไป...";
+          if (bIdx < speakerBatches.length - 1) {
+              nextSnippet = speakerBatches[bIdx+1].substring(0, 50) + "...";
+          } else if (sIdx < speakers.length - 1) {
+              nextSnippet = `กำลังเริ่มพากย์ ${speakers[sIdx+1]}...`;
+          } else {
+              nextSnippet = "เสร็จสิ้น";
+          }
+
+          const snippet = batchText.length > 50 ? batchText.substring(0, 50) + "..." : batchText;
+          const progressLabel = `📂 สร้างไฟล์แยก: ${speaker}\n📄 ข้อความปัจจุบัน: "${snippet}"`;
           
           if (onStatusUpdate) onStatusUpdate(progressLabel);
           
-          const textToSpeak = `${config.promptPrefix} ${text}`.trim();
+          const textToSpeak = `${config.promptPrefix} ${batchText}`.trim();
           const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, config.toneDescription, 1, onStatusUpdate, checkAborted, progressLabel);
           if (pcm) {
               audioChunks.push(pcm);
-              await delay(2000);
-          }
-      };
-
-      for (const line of lines) {
-          if (checkAborted && checkAborted()) break;
-          const combinedText = (currentBatchText + " " + line.text).trim();
-          if (combinedText.length <= maxCharsPerBatch) {
-              currentBatchText = combinedText;
-          } else {
-              if (currentBatchText) {
-                  await processBatch(currentBatchText);
-                  currentBatchText = "";
-              }
-              const lineChunks = splitTextSafely(line.text, maxCharsPerBatch);
-              for (let i = 0; i < lineChunks.length; i++) {
-                  await processBatch(lineChunks[i]);
+              if (!isLastBatchOverall) {
+                  await handleInterBatchWait(interBatchDelaySec, bIdx + 1, speakerBatches.length, nextSnippet, onStatusUpdate, checkAborted);
               }
           }
       }
-      
-      if (currentBatchText) await processBatch(currentBatchText);
       if (audioChunks.length > 0) speakerAudioMap.set(speaker, createWavBlob(audioChunks));
     }
   } catch (e: any) {
