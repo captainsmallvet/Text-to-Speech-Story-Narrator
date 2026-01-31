@@ -10,8 +10,8 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS, DEFAULT_TONE } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.9.5 (Customizable Batch Delay)";
-const LAST_UPDATED = "Nov 20, 2025 22:45";
+const APP_VERSION = "v1.9.6 (Tone Preset Update)";
+const LAST_UPDATED = "Nov 20, 2025 23:05";
 const DEFAULT_SEED = 949222;
 
 const App: React.FC = () => {
