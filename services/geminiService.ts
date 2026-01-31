@@ -54,9 +54,13 @@ const callGeminiTTS = async (
 
     const ai = getAi();
     try {
+        // เพิ่มคำสั่งพิเศษเพื่อรักษาคุณภาพเสียงและจังหวะให้คงที่ (Quality Reinforcement)
+        const qualityReinforcement = "Synthesize this in a high-quality, professional studio recording style. Maintain a consistent, steady pace without any audio artifacts.";
+        const finalPrompt = `${qualityReinforcement} ${text}`;
+
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash-preview-tts",
-            contents: [{ parts: [{ text }] }],
+            contents: [{ parts: [{ text: finalPrompt }] }],
             config: {
                 responseModalities: [Modality.AUDIO],
                 seed: seed,
@@ -144,7 +148,8 @@ export const generateMultiLineSpeech = async (
             if (pcm) {
                 audioChunks.push(pcm);
                 processedChars += text.length;
-                await delay(300);
+                // เพิ่ม Delay เป็น 2 วินาที เพื่อลดภาระ Server และคงความเสถียรของความเร็วเสียง
+                await delay(2000);
             }
         }
     };
@@ -217,7 +222,8 @@ export const generateSeparateSpeakerSpeech = async (
           const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, 1, onStatusUpdate, checkAborted, progressLabel);
           if (pcm) {
               audioChunks.push(pcm);
-              await delay(300);
+              // เพิ่ม Delay เป็น 2 วินาที
+              await delay(2000);
           }
       };
 
