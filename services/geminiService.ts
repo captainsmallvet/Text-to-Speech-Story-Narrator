@@ -1,6 +1,7 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import type { DialogueLine, SpeakerConfig } from '../types';
 import { decode, createWavBlob } from '../utils/audio';
+import { DEFAULT_TONE } from '../constants';
 
 const getAi = () => {
   const savedKey = localStorage.getItem('gemini_api_key');
@@ -45,6 +46,7 @@ const callGeminiTTS = async (
     text: string, 
     voice: string, 
     seed?: number, 
+    tone?: string,
     attempt: number = 1,
     onStatusUpdate?: (msg: string) => void,
     checkAborted?: () => boolean,
@@ -54,9 +56,11 @@ const callGeminiTTS = async (
 
     const ai = getAi();
     try {
-        // เพิ่มคำสั่งพิเศษเพื่อรักษาคุณภาพเสียงและจังหวะให้คงที่ (Quality Reinforcement)
-        const qualityReinforcement = "Synthesize this in a high-quality, professional studio recording style. Maintain a consistent, steady pace without any audio artifacts.";
-        const finalPrompt = `${qualityReinforcement} ${text}`;
+        // อัปเกรดคำสั่งเพื่อแก้ปัญหาเสียงแหลม (Sibilance/Piercing Highs)
+        const toneToUse = tone || DEFAULT_TONE;
+        const qualityReinforcement = `Synthesize this in a professional, mellow broadcast style. Tone description: ${toneToUse}. Ensure the audio is smooth, warm, and non-fatiguing, with controlled high frequencies to avoid piercing or sibilant artifacts. Maintain a perfectly consistent pace.`;
+        
+        const finalPrompt = `${qualityReinforcement} Text: ${text}`;
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash-preview-tts",
@@ -97,22 +101,22 @@ const callGeminiTTS = async (
             }
             
             if (onStatusUpdate) onStatusUpdate(`${progressLabel}\n\n🔄 กำลังส่งข้อมูลรอบใหม่...`);
-            return callGeminiTTS(text, voice, seed, attempt, onStatusUpdate, checkAborted, progressLabel);
+            return callGeminiTTS(text, voice, seed, tone, attempt, onStatusUpdate, checkAborted, progressLabel);
         }
 
         if (attempt <= 3 && (errorMsg.includes("500") || errorMsg.includes("Internal Error"))) {
             const retryMsg = `${progressLabel}\n\n⚠️ Server ขัดข้อง... กำลังลองใหม่รอบที่ ${attempt}/3`;
             if (onStatusUpdate) onStatusUpdate(retryMsg);
             await delay(attempt * 2000);
-            return callGeminiTTS(text, voice, seed, attempt + 1, onStatusUpdate, checkAborted, progressLabel);
+            return callGeminiTTS(text, voice, seed, tone, attempt + 1, onStatusUpdate, checkAborted, progressLabel);
         }
 
         throw error;
     }
 };
 
-export const generateSingleLineSpeech = async (text: string, voice: string, seed?: number): Promise<Blob | null> => {
-    const pcmData = await callGeminiTTS(text, voice, seed);
+export const generateSingleLineSpeech = async (text: string, voice: string, seed?: number, tone?: string): Promise<Blob | null> => {
+    const pcmData = await callGeminiTTS(text, voice, seed, tone);
     if (pcmData) return createWavBlob([pcmData]);
     return null;
 };
@@ -144,11 +148,10 @@ export const generateMultiLineSpeech = async (
             if (onStatusUpdate) onStatusUpdate(progressLabel);
             
             const textToSpeak = `${config.promptPrefix} ${text}`.trim();
-            const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, 1, onStatusUpdate, checkAborted, progressLabel);
+            const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, config.toneDescription, 1, onStatusUpdate, checkAborted, progressLabel);
             if (pcm) {
                 audioChunks.push(pcm);
                 processedChars += text.length;
-                // เพิ่ม Delay เป็น 2 วินาที เพื่อลดภาระ Server และคงความเสถียรของความเร็วเสียง
                 await delay(2000);
             }
         }
@@ -219,10 +222,9 @@ export const generateSeparateSpeakerSpeech = async (
           if (onStatusUpdate) onStatusUpdate(progressLabel);
           
           const textToSpeak = `${config.promptPrefix} ${text}`.trim();
-          const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, 1, onStatusUpdate, checkAborted, progressLabel);
+          const pcm = await callGeminiTTS(textToSpeak, config.voice, config.seed, config.toneDescription, 1, onStatusUpdate, checkAborted, progressLabel);
           if (pcm) {
               audioChunks.push(pcm);
-              // เพิ่ม Delay เป็น 2 วินาที
               await delay(2000);
           }
       };

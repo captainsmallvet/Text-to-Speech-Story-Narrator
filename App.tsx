@@ -7,11 +7,11 @@ import Modal from './components/Modal';
 import { generateSingleLineSpeech, generateMultiLineSpeech, generateSeparateSpeakerSpeech, performTextReasoning } from './services/geminiService';
 import { playAudio, downloadAudio, setOnPlaybackStateChange, stopAudio } from './utils/audio';
 import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
-import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS } from './constants';
+import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS, DEFAULT_TONE } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.8.0 (Audio Stability & Drift Fix)";
-const LAST_UPDATED = "Nov 20, 2025 20:30";
+const APP_VERSION = "v1.9.0 (Warm Tone Update)";
+const LAST_UPDATED = "Nov 20, 2025 21:15";
 const DEFAULT_SEED = 949222;
 
 const App: React.FC = () => {
@@ -107,6 +107,7 @@ const App: React.FC = () => {
               volume: config.volume || 1,
               speed: config.speed || 'slightly_slow',
               seed: config.seed !== undefined ? config.seed : DEFAULT_SEED,
+              toneDescription: config.toneDescription || DEFAULT_TONE,
           }]));
           setSpeakerConfigs(migratedConfigs);
         }
@@ -156,6 +157,7 @@ const App: React.FC = () => {
             volume: 1, 
             speed: 'slightly_slow', 
             seed: DEFAULT_SEED,
+            toneDescription: DEFAULT_TONE,
           });
         }
         voiceIndex++;
@@ -326,7 +328,7 @@ const App: React.FC = () => {
           />
           <VoiceSettings
             speakerConfigs={speakerConfigs} onSpeakerConfigChange={handleSpeakerConfigChange}
-            onPreviewLine={(l) => generateSingleLineSpeech(`${constructFullPrefix(speakerConfigs.get(l.speaker)!)} ${l.text}`, speakerConfigs.get(l.speaker)?.voice || 'Kore', speakerConfigs.get(l.speaker)?.seed).then(b => b && playAudio(b))}
+            onPreviewLine={(l) => generateSingleLineSpeech(`${constructFullPrefix(speakerConfigs.get(l.speaker)!)} ${l.text}`, speakerConfigs.get(l.speaker)?.voice || 'Kore', speakerConfigs.get(l.speaker)?.seed, speakerConfigs.get(l.speaker)?.toneDescription).then(b => b && playAudio(b))}
             onPreviewSpeaker={(s) => generateMultiLineSpeech(dialogueLines.filter(l => l.speaker === s), new Map([[s, { ...speakerConfigs.get(s)!, promptPrefix: constructFullPrefix(speakerConfigs.get(s)!) }]]), (m) => setGenerationStatus(m), undefined, maxCharsPerBatch).then(b => b && playAudio(b))}
             dialogueLines={dialogueLines} onGenerateFullStory={handleGenerateFullStory} isGenerating={isGenerating}
             generatedAudio={generatedStoryAudio} generatedSpeakerAudio={generatedSpeakerAudio}

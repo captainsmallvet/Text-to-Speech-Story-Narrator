@@ -13,6 +13,7 @@ export interface SpeakerConfig {
   volume: number;
   speed: string;
   seed: number;
+  toneDescription: string;
 }
 
 export interface Voice {

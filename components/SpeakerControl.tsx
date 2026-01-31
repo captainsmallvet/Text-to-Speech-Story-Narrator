@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { SpeakerConfig, Voice } from '../types';
 import { AVAILABLE_VOICES, EMOTIONS, SPEEDS } from '../constants';
@@ -169,6 +168,22 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
             </button>
           </div>
         </div>
+        
+        {/* New Tone Description Field */}
+        <div className="md:col-span-2 lg:col-span-4">
+          <label htmlFor={`tone-${speakerName}`} className="block text-xs font-medium text-emerald-400 mb-1">
+            Voice Tone / Aesthetic (แนะนำ: ระบุเพื่อความนุ่มนวล ลดเสียงแตก/แหลม)
+          </label>
+          <input
+            type="text"
+            id={`tone-${speakerName}`}
+            value={config.toneDescription || ''}
+            onChange={(e) => onConfigChange({ ...config, toneDescription: e.target.value })}
+            placeholder="e.g. clear, deep, soft, warm, friendly tone..."
+            className="w-full bg-black/40 border border-gray-700 rounded-md p-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+        </div>
+
          <div className="md:col-span-2 lg:col-span-4">
             <label htmlFor={`volume-${speakerName}`} className="block text-xs font-medium text-gray-400 mb-1">
                 Volume: <span className="font-mono text-cyan-300">{Number(config.volume).toFixed(1)}x</span>
