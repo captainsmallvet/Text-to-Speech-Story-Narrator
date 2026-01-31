@@ -1,4 +1,3 @@
-
 import type { Voice, TextModel } from './types';
 
 export const AVAILABLE_VOICES: Voice[] = [
@@ -34,9 +33,9 @@ export const EMOTIONS = [
 ];
 
 export const SPEEDS = [
-  { value: 'normal', label: 'Normal', adverb: '' },
   { value: 'slow', label: 'Slow', adverb: 'slowly' },
   { value: 'slightly_slow', label: 'Comfortable', adverb: 'at a comfortable, relaxed pace' },
+  { value: 'normal', label: 'Normal', adverb: '' },
   { value: 'slightly_fast', label: 'Slightly Fast', adverb: 'somewhat quickly' },
 ];
 

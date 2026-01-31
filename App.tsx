@@ -10,8 +10,8 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.7.2 (Custom Batch Optimized)";
-const LAST_UPDATED = "Nov 20, 2025 18:45";
+const APP_VERSION = "v1.7.3 (Speed Reordered)";
+const LAST_UPDATED = "Nov 20, 2025 19:15";
 const DEFAULT_SEED = 949222;
 
 const App: React.FC = () => {
@@ -105,7 +105,7 @@ const App: React.FC = () => {
               promptPrefix: config.promptPrefix || '',
               emotion: config.emotion || 'none',
               volume: config.volume || 1,
-              speed: config.speed || 'normal',
+              speed: config.speed || 'slightly_slow',
               seed: config.seed !== undefined ? config.seed : DEFAULT_SEED,
           }]));
           setSpeakerConfigs(migratedConfigs);
@@ -151,7 +151,11 @@ const App: React.FC = () => {
         else {
           newConfigs.set(speaker, {
             voice: AVAILABLE_VOICES[voiceIndex % AVAILABLE_VOICES.length].id,
-            promptPrefix: '', emotion: 'none', volume: 1, speed: 'normal', seed: DEFAULT_SEED,
+            promptPrefix: '', 
+            emotion: 'none', 
+            volume: 1, 
+            speed: 'slightly_slow', 
+            seed: DEFAULT_SEED,
           });
         }
         voiceIndex++;
