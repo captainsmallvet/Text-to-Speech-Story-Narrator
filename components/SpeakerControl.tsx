@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { SpeakerConfig, Voice } from '../types';
 import { AVAILABLE_VOICES, EMOTIONS, SPEEDS } from '../constants';
@@ -38,8 +39,21 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
     }
   };
 
-  const randomizeSeed = () => {
-    onConfigChange({ ...config, seed: Math.floor(Math.random() * 1000000) });
+  const randomizeSeed = (index: number) => {
+    const newSeeds = [...config.seeds];
+    newSeeds[index] = Math.floor(Math.random() * 1000000);
+    onConfigChange({ ...config, seeds: newSeeds });
+  };
+
+  const randomizeAllSeeds = () => {
+    const newSeeds = Array.from({ length: 5 }, () => Math.floor(Math.random() * 1000000));
+    onConfigChange({ ...config, seeds: newSeeds });
+  };
+
+  const handleSeedChange = (index: number, val: string) => {
+      const newSeeds = [...config.seeds];
+      newSeeds[index] = parseInt(val) || 0;
+      onConfigChange({ ...config, seeds: newSeeds });
   };
 
   return (
@@ -88,7 +102,7 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
         <div>
           <label htmlFor={`voice-${speakerName}`} className="block text-xs font-medium text-gray-400 mb-1">
             Voice Model
@@ -147,30 +161,40 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
             ))}
           </select>
         </div>
-        <div>
-          <label htmlFor={`seed-${speakerName}`} className="block text-xs font-medium text-gray-400 mb-1">
-            Voice Seed (Variation)
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              id={`seed-${speakerName}`}
-              value={config.seed}
-              onChange={(e) => onConfigChange({ ...config, seed: parseInt(e.target.value) || 0 })}
-              className="flex-grow bg-gray-700 border border-gray-600 rounded-md p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-            />
-            <button
-                onClick={randomizeSeed}
-                title="Randomize Voice Take"
-                className="bg-gray-600 hover:bg-gray-500 text-white p-2 rounded-md transition-colors"
+      </div>
+
+      <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">
+                Voice Seeds (1 - 5 Rotation)
+            </label>
+            <button 
+                onClick={randomizeAllSeeds}
+                className="text-[10px] bg-indigo-900/40 hover:bg-indigo-900/60 text-indigo-300 px-2 py-1 rounded border border-indigo-700/50 transition-colors"
             >
-                🎲
+                Random All 🎲
             </button>
           </div>
-        </div>
+          <div className="grid grid-cols-5 gap-2">
+            {[0, 1, 2, 3, 4].map(idx => (
+                <div key={idx} className="space-y-1">
+                    <div className="flex items-center justify-between text-[9px] text-gray-500 uppercase px-1">
+                        <span>Seed {idx + 1}</span>
+                        <button onClick={() => randomizeSeed(idx)} className="hover:text-cyan-400">🎲</button>
+                    </div>
+                    <input
+                        type="number"
+                        value={config.seeds[idx]}
+                        onChange={(e) => handleSeedChange(idx, e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded p-1 text-xs text-center text-cyan-200 font-mono outline-none focus:border-cyan-500"
+                    />
+                </div>
+            ))}
+          </div>
+      </div>
         
-        {/* New Tone Description Field */}
-        <div className="md:col-span-2 lg:col-span-4">
+      {/* New Tone Description Field */}
+      <div className="mb-4">
           <label htmlFor={`tone-${speakerName}`} className="block text-xs font-medium text-emerald-400 mb-1">
             Voice Tone / Aesthetic (แนะนำ: ระบุเพื่อความนุ่มนวล ลดเสียงแตก/แหลม)
           </label>
@@ -182,9 +206,9 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
             placeholder="e.g. clear, deep, soft, warm, friendly tone..."
             className="w-full bg-black/40 border border-gray-700 rounded-md p-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
-        </div>
+      </div>
 
-         <div className="md:col-span-2 lg:col-span-4">
+      <div>
             <label htmlFor={`volume-${speakerName}`} className="block text-xs font-medium text-gray-400 mb-1">
                 Volume: <span className="font-mono text-cyan-300">{Number(config.volume).toFixed(1)}x</span>
             </label>
@@ -198,7 +222,6 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
                 onChange={(e) => onConfigChange({ ...config, volume: parseFloat(e.target.value) })}
                 className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
             />
-        </div>
       </div>
     </div>
   );

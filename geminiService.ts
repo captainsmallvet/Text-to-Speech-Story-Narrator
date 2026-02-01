@@ -1,17 +1,13 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
-import type { DialogueLine, SpeakerConfig } from '../types';
-import { decode, createWavBlob } from '../utils/audio';
-import { DEFAULT_TONE } from '../constants';
+import type { DialogueLine, SpeakerConfig } from './types';
+import { decode, createWavBlob } from './utils/audio';
+import { DEFAULT_TONE } from './constants';
 
-// ลบของเก่า: const getAi = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
-// วางของใหม่นี้ลงไปแทน:
 const getAi = () => {
-  const savedKey = localStorage.getItem('gemini_api_key');
-    const apiKey = savedKey || (window as any).process?.env?.API_KEY || "";
-      return new GoogleGenAI({ apiKey });
-      };
-
+  // Use the pre-configured API key from environment
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+};
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -154,6 +150,7 @@ export const generateMultiLineSpeech = async (
 ): Promise<Blob | null> => {
   if (dialogueLines.length === 0) return null;
   const audioChunks: Uint8Array[] = [];
+  // Added speakerSeedIndices to track seed rotation
   const speakerSeedIndices = new Map<string, number>();
 
   try {
@@ -192,7 +189,7 @@ export const generateMultiLineSpeech = async (
         
         const config = speakerConfigs.get(batch.speaker);
         if (config) {
-            // Get next seed for this speaker
+            // Fix: Replaced config.seed with seed rotation from config.seeds array
             const seedIdx = speakerSeedIndices.get(batch.speaker) || 0;
             const seedToUse = config.seeds[seedIdx % 5];
             speakerSeedIndices.set(batch.speaker, seedIdx + 1);
@@ -263,7 +260,7 @@ export const generateSeparateSpeakerSpeech = async (
           const batchText = speakerBatches[bIdx];
           const isLastBatchOverall = (sIdx === speakers.length - 1) && (bIdx === speakerBatches.length - 1);
           
-          // Seed rotation for speaker files
+          // Fix: Replaced config.seed with seed rotation from config.seeds array
           const seedToUse = config.seeds[bIdx % 5];
 
           let nextSnippet = "เปลี่ยนตัวละครถัดไป...";

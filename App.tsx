@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ScriptEditor from './components/ScriptEditor';
 import VoiceSettings from './components/VoiceSettings';
@@ -10,31 +11,32 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS, DEFAULT_TONE } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.9.7 (Updated Defaults)";
-const LAST_UPDATED = "Nov 20, 2025 23:15";
-const DEFAULT_SEED = 949222;
+const APP_VERSION = "v1.9.9 (Multi-Seed Rotation)";
+const LAST_UPDATED = "Nov 21, 2025 00:05";
+const DEFAULT_SEED_BASE = 949222;
 
 const App: React.FC = () => {
-  const [inputKey, setInputKey] = useState<string>('');
+  // --- ระบบจัดการ API Key สำหรับใช้งานส่วนตัว ---
+    const [inputKey, setInputKey] = useState<string>('');
+
+      useEffect(() => {
+          const savedKey = localStorage.getItem('gemini_api_key');
+              if (savedKey) {
+                    setInputKey(savedKey);
+                          (window as any).process = { env: { API_KEY: savedKey } };
+                              } else {
+                                    setInputKey('no API key');
+                                        }
+                                          }, []);
+
+                                            const handleSendKey = () => {
+                                                if (inputKey && inputKey !== 'no API key') {
+                                                      localStorage.setItem('gemini_api_key', inputKey);
+                                                            alert("บันทึก API Key เรียบร้อยแล้วครับ");
+                                                                  window.location.reload(); 
+                                                                      }
+                                                                        };
   const isAbortingRef = useRef(false);
-
-  useEffect(() => {
-    const savedKey = localStorage.getItem('gemini_api_key');
-    if (savedKey) {
-      setInputKey(savedKey);
-      (window as any).process = { env: { API_KEY: savedKey } };
-    } else {
-      setInputKey('no API key');
-    }
-  }, []);
-
-  const handleSendKey = () => {
-    if (inputKey && inputKey !== 'no API key') {
-      localStorage.setItem('gemini_api_key', inputKey);
-      showInfoModal("System Notification", "บันทึก API Key เรียบร้อยแล้วครับ ระบบจะทำการรีโหลดหน้าเว็บ");
-      setTimeout(() => window.location.reload(), 1500);
-    }
-  };
 
   const [scriptText, setScriptText] = useState<string>('');
   const [dialogueLines, setDialogueLines] = useState<DialogueLine[]>([]);
@@ -83,6 +85,8 @@ const App: React.FC = () => {
     });
   }, [generatedStoryAudio, storyPlaybackSpeed, storyPlaybackVolume]);
 
+  const createDefaultSeeds = (base: number = DEFAULT_SEED_BASE) => [base, base + 1, base + 2, base + 3, base + 4];
+
   useEffect(() => {
     setOnPlaybackStateChange(setIsPlaying);
     const savedScript = localStorage.getItem('tts-script');
@@ -103,15 +107,22 @@ const App: React.FC = () => {
       try {
         const parsedConfigs: [string, any][] = JSON.parse(savedConfigs) as any;
         if (Array.isArray(parsedConfigs)) {
-          const migratedConfigs = new Map<string, SpeakerConfig>(parsedConfigs.map(([speaker, config]) => [speaker, {
-              voice: config.voice || AVAILABLE_VOICES[0].id,
-              promptPrefix: config.promptPrefix || '',
-              emotion: config.emotion || 'with a serene, wise tone, articulating every word clearly and peacefully',
-              volume: config.volume || 1,
-              speed: config.speed || 'normal',
-              seed: config.seed !== undefined ? config.seed : DEFAULT_SEED,
-              toneDescription: config.toneDescription || DEFAULT_TONE,
-          }]));
+          const migratedConfigs = new Map<string, SpeakerConfig>(parsedConfigs.map(([speaker, config]) => {
+              // Migration for seeds array
+              let seeds = config.seeds;
+              if (!seeds || !Array.isArray(seeds)) {
+                  seeds = createDefaultSeeds(config.seed || DEFAULT_SEED_BASE);
+              }
+              return [speaker, {
+                  voice: config.voice || AVAILABLE_VOICES[0].id,
+                  promptPrefix: config.promptPrefix || '',
+                  emotion: config.emotion || 'with a serene, wise tone, articulating every word clearly and peacefully',
+                  volume: config.volume || 1,
+                  speed: config.speed || 'normal',
+                  seeds: seeds,
+                  toneDescription: config.toneDescription || DEFAULT_TONE,
+              }];
+          }));
           setSpeakerConfigs(migratedConfigs);
         }
       } catch (e) { console.error(e); }
@@ -151,15 +162,16 @@ const App: React.FC = () => {
       const newConfigs = new Map<string, SpeakerConfig>();
       let voiceIndex = 0;
       newSpeakers.forEach(speaker => {
-        if (prevConfigs.has(speaker)) newConfigs.set(speaker, prevConfigs.get(speaker)!);
-        else {
+        if (prevConfigs.has(speaker)) {
+            newConfigs.set(speaker, prevConfigs.get(speaker)!);
+        } else {
           newConfigs.set(speaker, {
             voice: AVAILABLE_VOICES[voiceIndex % AVAILABLE_VOICES.length].id,
             promptPrefix: '', 
             emotion: 'with a serene, wise tone, articulating every word clearly and peacefully', 
             volume: 1, 
             speed: 'normal', 
-            seed: DEFAULT_SEED,
+            seeds: createDefaultSeeds(DEFAULT_SEED_BASE + (voiceIndex * 10)),
             toneDescription: DEFAULT_TONE,
           });
         }
@@ -193,6 +205,47 @@ const App: React.FC = () => {
     else if (speedAdverb) fullPrefix += `${speedAdverb}:`;
     else if (emotionDesc) fullPrefix += `${emotionDesc}:`;
     return fullPrefix;
+  };
+
+  const handlePreviewSpeaker = async (speaker: string) => {
+    const lines = dialogueLines.filter(l => l.speaker === speaker);
+    if (lines.length === 0) return;
+    
+    setIsGenerating(true);
+    isAbortingRef.current = false;
+    setGenerationStatus('กำลังเตรียมข้อมูลสำหรับพรีวิว...');
+    
+    try {
+      const config = speakerConfigs.get(speaker);
+      if (!config) throw new Error("Speaker config not found.");
+      
+      const voiceInfo = allVoices.find(v => v.id === config.voice);
+      const voiceToUse = (voiceInfo?.isCustom && voiceInfo.baseVoiceId) ? voiceInfo.baseVoiceId : (voiceInfo?.id || AVAILABLE_VOICES[0].id);
+      
+      const effectiveConfigs = new Map([[speaker, { 
+        ...config, 
+        voice: voiceToUse, 
+        promptPrefix: constructFullPrefix(config) 
+      }]]);
+
+      const audioBlob = await generateMultiLineSpeech(
+        lines, 
+        effectiveConfigs, 
+        (msg) => setGenerationStatus(msg), 
+        () => isAbortingRef.current, 
+        maxCharsPerBatch, 
+        interBatchDelay
+      );
+      
+      if (audioBlob) {
+        await playAudio(audioBlob);
+      }
+    } catch (error: any) {
+      showInfoModal("พรีวิวขัดข้อง", `ไม่สามารถพรีวิวเสียงได้: ${error.message}`, 'error');
+    } finally {
+      setIsGenerating(false);
+      setGenerationStatus('');
+    }
   };
 
   const handleGenerateFullStory = async () => {
@@ -289,25 +342,28 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-950 text-white p-4 lg:p-8 font-sans">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6 p-4 bg-gray-900 border border-emerald-500/30 rounded-xl">
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold text-emerald-400 uppercase text-left">API Key Control Panel :</label>
-            <div className="flex flex-wrap sm:flex-nowrap gap-2">
-              <input
-                type="text" value={inputKey} onChange={(e) => setInputKey(e.target.value)}
-                className="w-full flex-1 bg-black border border-gray-700 rounded px-3 py-2 text-sm font-mono text-emerald-300 outline-none"
-                placeholder="Enter your Gemini API Key..."
-              />
-              <div className="flex gap-2 w-full sm:w-auto">
-                <button onClick={handleSendKey} className="flex-1 bg-emerald-600 px-4 py-2 rounded text-xs font-bold hover:bg-emerald-700 transition-colors">SEND</button>
-                <button onClick={() => { handleCopyText(inputKey); showToast("Key Copied!"); }} className="flex-1 bg-blue-600 px-4 py-2 rounded text-xs font-bold">COPY</button>
-                <button onClick={() => { localStorage.removeItem('gemini_api_key'); setInputKey(''); showToast("Key Cleared!"); }} className="flex-1 bg-red-600 px-4 py-2 rounded text-xs font-bold">CLEAR</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <header className="text-center mb-6">
+      {/* API Key Management Bar */}
+              <div className="mb-6 p-4 bg-gray-900 border border-emerald-500/30 rounded-xl">
+                        <div className="flex flex-col gap-2">
+                                    <label className="text-xs font-bold text-emerald-400 uppercase text-left">
+                                                  API Key Control Panel :
+                                                              </label>
+                                                                          <div className="flex flex-wrap sm:flex-nowrap gap-2">
+                                                                                        <input
+                                                                                                        type="text"
+                                                                                                                        value={inputKey}
+                                                                                                                                        onChange={(e) => setInputKey(e.target.value)}
+                                                                                                                                                        className="w-full flex-1 bg-black border border-gray-700 rounded px-3 py-2 text-sm font-mono text-emerald-300 outline-none"
+                                                                                                                                                                      />
+                                                                                                                                                                                    <div className="flex gap-2 w-full sm:w-auto">
+                                                                                                                                                                                                    <button onClick={handleSendKey} className="flex-1 bg-emerald-600 px-4 py-2 rounded text-xs font-bold hover:bg-emerald-700 transition-colors">SEND</button>
+                                                                                                                                                                                                                    <button onClick={() => { navigator.clipboard.writeText(inputKey); alert("Copy แล้วครับ"); }} className="flex-1 bg-blue-600 px-4 py-2 rounded text-xs font-bold">COPY</button>
+                                                                                                                                                                                                                                    <button onClick={() => { localStorage.removeItem('gemini_api_key'); setInputKey(''); alert("ลบ Key แล้วครับ"); }} className="flex-1 bg-red-600 px-4 py-2 rounded text-xs font-bold">CLEAR</button>
+                                                                                                                                                                                                                                                  </div>
+                                                                                                                                                                                                                                                              </div>
+                                                                                                                                                                                                                                                                        </div>
+                                                                                                                                                                                                                                                                                </div>
+        <header className="text-center mb-10">
           <h1 className="text-4xl lg:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-600">
             Text-to-Speech Story Narrator
           </h1>
@@ -316,7 +372,7 @@ const App: React.FC = () => {
                 <label className="font-bold text-emerald-500 uppercase tracking-widest whitespace-nowrap">Model:</label>
                 <select
                     value={textModelId} onChange={(e) => { setTextModelId(e.target.value); localStorage.setItem('tts-textModelId', e.target.value); }}
-                    className="bg-gray-800 text-white border-none rounded p-1"
+                    className="bg-gray-800 text-white border-none rounded p-1 outline-none"
                 >
                     {TEXT_MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
@@ -332,8 +388,12 @@ const App: React.FC = () => {
           />
           <VoiceSettings
             speakerConfigs={speakerConfigs} onSpeakerConfigChange={handleSpeakerConfigChange}
-            onPreviewLine={(l) => generateSingleLineSpeech(`${constructFullPrefix(speakerConfigs.get(l.speaker)!)} ${l.text}`, speakerConfigs.get(l.speaker)?.voice || 'Kore', speakerConfigs.get(l.speaker)?.seed, speakerConfigs.get(l.speaker)?.toneDescription).then(b => b && playAudio(b))}
-            onPreviewSpeaker={(s) => generateMultiLineSpeech(dialogueLines.filter(l => l.speaker === s), new Map([[s, { ...speakerConfigs.get(s)!, promptPrefix: constructFullPrefix(speakerConfigs.get(s)!) }]]), (m) => setGenerationStatus(m), undefined, maxCharsPerBatch, interBatchDelay).then(b => b && playAudio(b))}
+            onPreviewLine={(l) => {
+                const config = speakerConfigs.get(l.speaker);
+                const seedToUse = config ? config.seeds[0] : DEFAULT_SEED_BASE;
+                return generateSingleLineSpeech(`${constructFullPrefix(speakerConfigs.get(l.speaker)!)} ${l.text}`, speakerConfigs.get(l.speaker)?.voice || 'Kore', seedToUse, speakerConfigs.get(l.speaker)?.toneDescription).then(b => b && playAudio(b));
+            }}
+            onPreviewSpeaker={handlePreviewSpeaker}
             dialogueLines={dialogueLines} onGenerateFullStory={handleGenerateFullStory} isGenerating={isGenerating}
             generatedAudio={generatedStoryAudio} generatedSpeakerAudio={generatedSpeakerAudio}
             onDownload={() => generatedStoryAudio && downloadAudio(generatedStoryAudio, `Story_Master_${Date.now()}`)}

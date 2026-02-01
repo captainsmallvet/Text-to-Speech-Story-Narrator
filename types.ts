@@ -12,7 +12,7 @@ export interface SpeakerConfig {
   emotion: string;
   volume: number;
   speed: string;
-  seed: number;
+  seeds: number[]; // Changed from single number to array of 5
   toneDescription: string;
 }
 
