@@ -10,8 +10,8 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS, DEFAULT_TONE } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.9.6 (Tone Preset Update)";
-const LAST_UPDATED = "Nov 20, 2025 23:05";
+const APP_VERSION = "v1.9.7 (Updated Defaults)";
+const LAST_UPDATED = "Nov 20, 2025 23:15";
 const DEFAULT_SEED = 949222;
 
 const App: React.FC = () => {
@@ -58,7 +58,7 @@ const App: React.FC = () => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [statusCopySuccess, setStatusCopySuccess] = useState(false);
   const [textModelId, setTextModelId] = useState<string>(TEXT_MODELS[0].id);
-  const [maxCharsPerBatch, setMaxCharsPerBatch] = useState<number>(4500);
+  const [maxCharsPerBatch, setMaxCharsPerBatch] = useState<number>(3000);
   const [interBatchDelay, setInterBatchDelay] = useState<number>(120);
 
   const allVoices = useMemo(() => [...AVAILABLE_VOICES, ...customVoices], [customVoices]);
@@ -96,7 +96,7 @@ const App: React.FC = () => {
     else setScriptText(EXAMPLE_SCRIPT);
     
     if (savedTextModelId) setTextModelId(savedTextModelId);
-    if (savedMaxChars) setMaxCharsPerBatch(parseInt(savedMaxChars) || 4500);
+    if (savedMaxChars) setMaxCharsPerBatch(parseInt(savedMaxChars) || 3000);
     if (savedDelay) setInterBatchDelay(parseInt(savedDelay) || 120);
 
     if (savedConfigs) {
@@ -106,9 +106,9 @@ const App: React.FC = () => {
           const migratedConfigs = new Map<string, SpeakerConfig>(parsedConfigs.map(([speaker, config]) => [speaker, {
               voice: config.voice || AVAILABLE_VOICES[0].id,
               promptPrefix: config.promptPrefix || '',
-              emotion: config.emotion || 'none',
+              emotion: config.emotion || 'with a serene, wise tone, articulating every word clearly and peacefully',
               volume: config.volume || 1,
-              speed: config.speed || 'slightly_slow',
+              speed: config.speed || 'normal',
               seed: config.seed !== undefined ? config.seed : DEFAULT_SEED,
               toneDescription: config.toneDescription || DEFAULT_TONE,
           }]));
@@ -156,9 +156,9 @@ const App: React.FC = () => {
           newConfigs.set(speaker, {
             voice: AVAILABLE_VOICES[voiceIndex % AVAILABLE_VOICES.length].id,
             promptPrefix: '', 
-            emotion: 'none', 
+            emotion: 'with a serene, wise tone, articulating every word clearly and peacefully', 
             volume: 1, 
-            speed: 'slightly_slow', 
+            speed: 'normal', 
             seed: DEFAULT_SEED,
             toneDescription: DEFAULT_TONE,
           });
