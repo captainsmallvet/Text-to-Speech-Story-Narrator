@@ -11,33 +11,34 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS, DEFAULT_TONE } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.9.10 (Updated Default Seeds)";
-const LAST_UPDATED = "Nov 21, 2025 00:15";
+const APP_VERSION = "v1.9.11 (Sequence Seeds)";
+const LAST_UPDATED = "Nov 21, 2025 00:30";
 
-// User requested specific default seeds
-const INITIAL_DEFAULT_SEEDS = [805109, 834595, 838572, 843547, 868489];
+// User requested specific default seeds in sequence
+const INITIAL_DEFAULT_SEEDS = [949222, 949223, 949224, 949225, 949226];
 
 const App: React.FC = () => {
   // --- ระบบจัดการ API Key สำหรับใช้งานส่วนตัว ---
-    const [inputKey, setInputKey] = useState<string>('');
+  const [inputKey, setInputKey] = useState<string>('');
 
-      useEffect(() => {
-          const savedKey = localStorage.getItem('gemini_api_key');
-              if (savedKey) {
-                    setInputKey(savedKey);
-                          (window as any).process = { env: { API_KEY: savedKey } };
-                              } else {
-                                    setInputKey('no API key');
-                                        }
-                                          }, []);
+  useEffect(() => {
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (savedKey) {
+      setInputKey(savedKey);
+      (window as any).process = { env: { API_KEY: savedKey } };
+    } else {
+      setInputKey('no API key');
+    }
+  }, []);
 
-                                            const handleSendKey = () => {
-                                                if (inputKey && inputKey !== 'no API key') {
-                                                      localStorage.setItem('gemini_api_key', inputKey);
-                                                            alert("บันทึก API Key เรียบร้อยแล้วครับ");
-                                                                  window.location.reload(); 
-                                                                      }
-                                                                        };
+  const handleSendKey = () => {
+    if (inputKey && inputKey !== 'no API key') {
+      localStorage.setItem('gemini_api_key', inputKey);
+      alert("บันทึก API Key เรียบร้อยแล้วครับ");
+      window.location.reload();
+    }
+  };
+
   const isAbortingRef = useRef(false);
 
   const [scriptText, setScriptText] = useState<string>('');
@@ -68,7 +69,7 @@ const App: React.FC = () => {
   const allVoices = useMemo(() => [...AVAILABLE_VOICES, ...customVoices], [customVoices]);
 
   const showInfoModal = (title: string, content: string, type: 'info' | 'error' | 'success' = 'info') => {
-      setInfoModal({ title, content, type });
+    setInfoModal({ title, content, type });
   };
 
   const handleSpeakerConfigChange = useCallback((speaker: string, newConfig: SpeakerConfig) => {
@@ -81,9 +82,9 @@ const App: React.FC = () => {
 
   const handlePlayFullStory = useCallback(async () => {
     if (!generatedStoryAudio) return;
-    await playAudio(generatedStoryAudio, { 
-      speed: storyPlaybackSpeed, 
-      volume: storyPlaybackVolume 
+    await playAudio(generatedStoryAudio, {
+      speed: storyPlaybackSpeed,
+      volume: storyPlaybackVolume
     });
   }, [generatedStoryAudio, storyPlaybackSpeed, storyPlaybackVolume]);
 
@@ -105,7 +106,7 @@ const App: React.FC = () => {
 
     if (savedScript) setScriptText(savedScript);
     else setScriptText(EXAMPLE_SCRIPT);
-    
+
     if (savedTextModelId) setTextModelId(savedTextModelId);
     if (savedMaxChars) setMaxCharsPerBatch(parseInt(savedMaxChars) || 3000);
     if (savedDelay) setInterBatchDelay(parseInt(savedDelay) || 120);
@@ -115,35 +116,35 @@ const App: React.FC = () => {
         const parsedConfigs: [string, any][] = JSON.parse(savedConfigs) as any;
         if (Array.isArray(parsedConfigs)) {
           const migratedConfigs = new Map<string, SpeakerConfig>(parsedConfigs.map(([speaker, config]) => {
-              // Migration for seeds array
-              let seeds = config.seeds;
-              if (!seeds || !Array.isArray(seeds)) {
-                  seeds = createDefaultSeeds(config.seed);
-              }
-              return [speaker, {
-                  voice: config.voice || AVAILABLE_VOICES[0].id,
-                  promptPrefix: config.promptPrefix || '',
-                  emotion: config.emotion || 'with a serene, wise tone, articulating every word clearly and peacefully',
-                  volume: config.volume || 1,
-                  speed: config.speed || 'normal',
-                  seeds: seeds,
-                  toneDescription: config.toneDescription || DEFAULT_TONE,
-              }];
+            // Migration for seeds array
+            let seeds = config.seeds;
+            if (!seeds || !Array.isArray(seeds)) {
+              seeds = createDefaultSeeds(config.seed);
+            }
+            return [speaker, {
+              voice: config.voice || AVAILABLE_VOICES[0].id,
+              promptPrefix: config.promptPrefix || '',
+              emotion: config.emotion || 'with a serene, wise tone, articulating every word clearly and peacefully',
+              volume: config.volume || 1,
+              speed: config.speed || 'normal',
+              seeds: seeds,
+              toneDescription: config.toneDescription || DEFAULT_TONE,
+            }];
           }));
           setSpeakerConfigs(migratedConfigs);
         }
       } catch (e) { console.error(e); }
     }
     if (savedCustomVoices) {
-        try {
-            const parsedData = JSON.parse(savedCustomVoices) as any;
-            if (Array.isArray(parsedData)) {
-                const migratedVoices: Voice[] = parsedData.filter((v: any) => v && v.id).map((v: any) => ({
-                    id: v.id, name: v.name, isCustom: true, baseVoiceId: v.baseVoiceId || AVAILABLE_VOICES[0].id,
-                }));
-                setCustomVoices(migratedVoices);
-            }
-        } catch (e) { console.error(e); }
+      try {
+        const parsedData = JSON.parse(savedCustomVoices) as any;
+        if (Array.isArray(parsedData)) {
+          const migratedVoices: Voice[] = parsedData.filter((v: any) => v && v.id).map((v: any) => ({
+            id: v.id, name: v.name, isCustom: true, baseVoiceId: v.baseVoiceId || AVAILABLE_VOICES[0].id,
+          }));
+          setCustomVoices(migratedVoices);
+        }
+      } catch (e) { console.error(e); }
     }
   }, []);
 
@@ -170,14 +171,14 @@ const App: React.FC = () => {
       let voiceIndex = 0;
       newSpeakers.forEach(speaker => {
         if (prevConfigs.has(speaker)) {
-            newConfigs.set(speaker, prevConfigs.get(speaker)!);
+          newConfigs.set(speaker, prevConfigs.get(speaker)!);
         } else {
           newConfigs.set(speaker, {
             voice: AVAILABLE_VOICES[voiceIndex % AVAILABLE_VOICES.length].id,
-            promptPrefix: '', 
-            emotion: 'with a serene, wise tone, articulating every word clearly and peacefully', 
-            volume: 1, 
-            speed: 'normal', 
+            promptPrefix: '',
+            emotion: 'with a serene, wise tone, articulating every word clearly and peacefully',
+            volume: 1,
+            speed: 'normal',
             // Use user-specified default seeds for new speakers, offset if not the first speaker to keep some variation
             seeds: createDefaultSeeds(voiceIndex === 0 ? undefined : (INITIAL_DEFAULT_SEEDS[0] + (voiceIndex * 10))),
             toneDescription: DEFAULT_TONE,
@@ -188,7 +189,7 @@ const App: React.FC = () => {
       return newConfigs;
     });
   }, [scriptText]);
-  
+
   const showToast = (message: string) => {
     setToastMessage(message);
     setTimeout(() => setToastMessage(null), 4000);
@@ -218,33 +219,33 @@ const App: React.FC = () => {
   const handlePreviewSpeaker = async (speaker: string) => {
     const lines = dialogueLines.filter(l => l.speaker === speaker);
     if (lines.length === 0) return;
-    
+
     setIsGenerating(true);
     isAbortingRef.current = false;
     setGenerationStatus('กำลังเตรียมข้อมูลสำหรับพรีวิว...');
-    
+
     try {
       const config = speakerConfigs.get(speaker);
       if (!config) throw new Error("Speaker config not found.");
-      
+
       const voiceInfo = allVoices.find(v => v.id === config.voice);
       const voiceToUse = (voiceInfo?.isCustom && voiceInfo.baseVoiceId) ? voiceInfo.baseVoiceId : (voiceInfo?.id || AVAILABLE_VOICES[0].id);
-      
-      const effectiveConfigs = new Map([[speaker, { 
-        ...config, 
-        voice: voiceToUse, 
-        promptPrefix: constructFullPrefix(config) 
+
+      const effectiveConfigs = new Map([[speaker, {
+        ...config,
+        voice: voiceToUse,
+        promptPrefix: constructFullPrefix(config)
       }]]);
 
       const audioBlob = await generateMultiLineSpeech(
-        lines, 
-        effectiveConfigs, 
-        (msg) => setGenerationStatus(msg), 
-        () => isAbortingRef.current, 
-        maxCharsPerBatch, 
+        lines,
+        effectiveConfigs,
+        (msg) => setGenerationStatus(msg),
+        () => isAbortingRef.current,
+        maxCharsPerBatch,
         interBatchDelay
       );
-      
+
       if (audioBlob) {
         await playAudio(audioBlob);
       }
@@ -266,39 +267,39 @@ const App: React.FC = () => {
 
     const effectiveSpeakerConfigs = new Map<string, SpeakerConfig>();
     for (const line of dialogueLines) {
-        if(!effectiveSpeakerConfigs.has(line.speaker)) {
-            const config = speakerConfigs.get(line.speaker);
-            if (!config) continue;
-            const voiceInfo = allVoices.find(v => v.id === config.voice);
-            const voiceToUse = (voiceInfo?.isCustom && voiceInfo.baseVoiceId) ? voiceInfo.baseVoiceId : (voiceInfo?.id || AVAILABLE_VOICES[0].id);
-            effectiveSpeakerConfigs.set(line.speaker, { ...config, voice: voiceToUse, promptPrefix: constructFullPrefix(config) });
-        }
+      if (!effectiveSpeakerConfigs.has(line.speaker)) {
+        const config = speakerConfigs.get(line.speaker);
+        if (!config) continue;
+        const voiceInfo = allVoices.find(v => v.id === config.voice);
+        const voiceToUse = (voiceInfo?.isCustom && voiceInfo.baseVoiceId) ? voiceInfo.baseVoiceId : (voiceInfo?.id || AVAILABLE_VOICES[0].id);
+        effectiveSpeakerConfigs.set(line.speaker, { ...config, voice: voiceToUse, promptPrefix: constructFullPrefix(config) });
+      }
     }
 
     try {
-        const checkAborted = () => isAbortingRef.current;
-        if (generationMode === 'combined') {
-            const audioBlob = await generateMultiLineSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg), checkAborted, maxCharsPerBatch, interBatchDelay);
-            if (audioBlob) {
-                setGeneratedStoryAudio(audioBlob);
-                if (isAbortingRef.current) showToast("Stopped! Partial audio saved.");
-                else showToast("Full audio generated!");
-            }
-        } else {
-            const speakerAudioMap = await generateSeparateSpeakerSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg), checkAborted, maxCharsPerBatch, interBatchDelay);
-            if (speakerAudioMap && speakerAudioMap.size > 0) {
-                setGeneratedSpeakerAudio(speakerAudioMap);
-                if (isAbortingRef.current) showToast("Stopped! Partial speaker files saved.");
-                else showToast("Speaker files ready!");
-            }
+      const checkAborted = () => isAbortingRef.current;
+      if (generationMode === 'combined') {
+        const audioBlob = await generateMultiLineSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg), checkAborted, maxCharsPerBatch, interBatchDelay);
+        if (audioBlob) {
+          setGeneratedStoryAudio(audioBlob);
+          if (isAbortingRef.current) showToast("Stopped! Partial audio saved.");
+          else showToast("Full audio generated!");
         }
+      } else {
+        const speakerAudioMap = await generateSeparateSpeakerSpeech(dialogueLines, effectiveSpeakerConfigs, (msg) => setGenerationStatus(msg), checkAborted, maxCharsPerBatch, interBatchDelay);
+        if (speakerAudioMap && speakerAudioMap.size > 0) {
+          setGeneratedSpeakerAudio(speakerAudioMap);
+          if (isAbortingRef.current) showToast("Stopped! Partial speaker files saved.");
+          else showToast("Speaker files ready!");
+        }
+      }
     } catch (error: any) {
-        if (error.message.startsWith("DAILY_QUOTA_EXCEEDED")) {
-            const hours = error.message.split('|')[1];
-            showInfoModal("โควต้ารายวันหมดแล้ว", `โควต้า Google Gemini ของคุณหมดลงแล้วสำหรับวันนี้ กรุณารอประมาณ ${hours} ชั่วโมง หรือเปลี่ยนไปใช้ API Key ชุดอื่นครับ`, 'error');
-        } else {
-            showInfoModal("เกิดข้อผิดพลาด", `ระบบหยุดทำงาน: ${error.message}`, 'error');
-        }
+      if (error.message.startsWith("DAILY_QUOTA_EXCEEDED")) {
+        const hours = error.message.split('|')[1];
+        showInfoModal("โควต้ารายวันหมดแล้ว", `โควต้า Google Gemini ของคุณหมดลงแล้วสำหรับวันนี้ กรุณารอประมาณ ${hours} ชั่วโมง หรือเปลี่ยนไปใช้ API Key ชุดอื่นครับ`, 'error');
+      } else {
+        showInfoModal("เกิดข้อผิดพลาด", `ระบบหยุดทำงาน: ${error.message}`, 'error');
+      }
     } finally {
       setIsGenerating(false);
       setGenerationStatus('');
@@ -306,29 +307,29 @@ const App: React.FC = () => {
   };
 
   const handleAiAction = async (action: 'idea' | 'polish' | 'translate' | 'caption') => {
-      if (!scriptText.trim() && action !== 'idea') {
-          showToast("Please enter some text first.");
-          return;
+    if (!scriptText.trim() && action !== 'idea') {
+      showToast("Please enter some text first.");
+      return;
+    }
+    setAiLoadingAction(action);
+    try {
+      let prompt = "";
+      let systemInstruction = "You are a specialized AI assistant for Dhamma story narrators. Keep the tone respectful, wise, and serene.";
+      switch (action) {
+        case 'idea': prompt = `Create a short, inspiring Buddhist Dhamma script outline or first few lines about "Inner Peace" or "Mindfulness". Use the format 'Speaker: Text'. Current script content: ${scriptText}`; break;
+        case 'polish': prompt = `Improve the creative writing, flow, and vocabulary of the following script. Ensure it sounds natural for a narrator and maintains the established speaker tags. Script:\n${scriptText}`; break;
+        case 'translate': prompt = `Translate the following script to Thai, maintaining the 'Speaker: Text' format. If it is already in Thai, translate it to English. Script:\n${scriptText}`; break;
+        case 'caption': prompt = `Generate a short, engaging summary or caption for this story. Make it catchy and emotional for social media. Script:\n${scriptText}`; break;
       }
-      setAiLoadingAction(action);
-      try {
-          let prompt = "";
-          let systemInstruction = "You are a specialized AI assistant for Dhamma story narrators. Keep the tone respectful, wise, and serene.";
-          switch (action) {
-              case 'idea': prompt = `Create a short, inspiring Buddhist Dhamma script outline or first few lines about "Inner Peace" or "Mindfulness". Use the format 'Speaker: Text'. Current script content: ${scriptText}`; break;
-              case 'polish': prompt = `Improve the creative writing, flow, and vocabulary of the following script. Ensure it sounds natural for a narrator and maintains the established speaker tags. Script:\n${scriptText}`; break;
-              case 'translate': prompt = `Translate the following script to Thai, maintaining the 'Speaker: Text' format. If it is already in Thai, translate it to English. Script:\n${scriptText}`; break;
-              case 'caption': prompt = `Generate a short, engaging summary or caption for this story. Make it catchy and emotional for social media. Script:\n${scriptText}`; break;
-          }
-          const result = await performTextReasoning(prompt, textModelId, systemInstruction);
-          const finalResult = result.trim();
-          if (!finalResult) throw new Error("AI returned an empty response.");
-          if (action === 'caption') showInfoModal("AI Generated Caption", finalResult, 'success');
-          else if (action === 'idea') { setScriptText(prev => prev + (prev.trim() ? "\n\n" : "") + finalResult); showToast("AI Idea added!"); }
-          else { setScriptText(finalResult); showToast(`AI ${action.charAt(0).toUpperCase() + action.slice(1)} complete!`); }
-      } catch (error: any) {
-          showInfoModal("AI Tool Error", error.message, 'error');
-      } finally { setAiLoadingAction(null); }
+      const result = await performTextReasoning(prompt, textModelId, systemInstruction);
+      const finalResult = result.trim();
+      if (!finalResult) throw new Error("AI returned an empty response.");
+      if (action === 'caption') showInfoModal("AI Generated Caption", finalResult, 'success');
+      else if (action === 'idea') { setScriptText(prev => prev + (prev.trim() ? "\n\n" : "") + finalResult); showToast("AI Idea added!"); }
+      else { setScriptText(finalResult); showToast(`AI ${action.charAt(0).toUpperCase() + action.slice(1)} complete!`); }
+    } catch (error: any) {
+      showInfoModal("AI Tool Error", error.message, 'error');
+    } finally { setAiLoadingAction(null); }
   };
 
   const handleCopyText = async (text: string) => {
@@ -350,42 +351,42 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-950 text-white p-4 lg:p-8 font-sans">
       <div className="max-w-7xl mx-auto">
-      {/* API Key Management Bar */}
-              <div className="mb-6 p-4 bg-gray-900 border border-emerald-500/30 rounded-xl">
-                        <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-emerald-400 uppercase text-left">
-                                                  API Key Control Panel :
-                                                              </label>
-                                                                          <div className="flex flex-wrap sm:flex-nowrap gap-2">
-                                                                                        <input
-                                                                                                        type="text"
-                                                                                                                        value={inputKey}
-                                                                                                                                        onChange={(e) => setInputKey(e.target.value)}
-                                                                                                                                                        className="w-full flex-1 bg-black border border-gray-700 rounded px-3 py-2 text-sm font-mono text-emerald-300 outline-none"
-                                                                                                                                                                      />
-                                                                                                                                                                                    <div className="flex gap-2 w-full sm:w-auto">
-                                                                                                                                                                                                    <button onClick={handleSendKey} className="flex-1 bg-emerald-600 px-4 py-2 rounded text-xs font-bold hover:bg-emerald-700 transition-colors">SEND</button>
-                                                                                                                                                                                                                    <button onClick={() => { navigator.clipboard.writeText(inputKey); alert("Copy แล้วครับ"); }} className="flex-1 bg-blue-600 px-4 py-2 rounded text-xs font-bold">COPY</button>
-                                                                                                                                                                                                                                    <button onClick={() => { localStorage.removeItem('gemini_api_key'); setInputKey(''); alert("ลบ Key แล้วครับ"); }} className="flex-1 bg-red-600 px-4 py-2 rounded text-xs font-bold">CLEAR</button>
-                                                                                                                                                                                                                                                  </div>
-                                                                                                                                                                                                                                                              </div>
-                                                                                                                                                                                                                                                                        </div>
-                                                                                                                                                                                                                                                                                </div>
+        {/* API Key Management Bar */}
+        <div className="mb-6 p-4 bg-gray-900 border border-emerald-500/30 rounded-xl">
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold text-emerald-400 uppercase text-left">
+              API Key Control Panel :
+            </label>
+            <div className="flex flex-wrap sm:flex-nowrap gap-2">
+              <input
+                type="text"
+                value={inputKey}
+                onChange={(e) => setInputKey(e.target.value)}
+                className="w-full flex-1 bg-black border border-gray-700 rounded px-3 py-2 text-sm font-mono text-emerald-300 outline-none"
+              />
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button onClick={handleSendKey} className="flex-1 bg-emerald-600 px-4 py-2 rounded text-xs font-bold hover:bg-emerald-700 transition-colors">SEND</button>
+                <button onClick={() => { navigator.clipboard.writeText(inputKey); alert("Copy แล้วครับ"); }} className="flex-1 bg-blue-600 px-4 py-2 rounded text-xs font-bold">COPY</button>
+                <button onClick={() => { localStorage.removeItem('gemini_api_key'); setInputKey(''); alert("ลบ Key แล้วครับ"); }} className="flex-1 bg-red-600 px-4 py-2 rounded text-xs font-bold">CLEAR</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <header className="text-center mb-10">
           <h1 className="text-4xl lg:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-600">
             Text-to-Speech Story Narrator
           </h1>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-4 text-xs">
-              <div className="flex items-center gap-2 bg-gray-900/50 p-2 rounded-lg border border-gray-800">
-                <label className="font-bold text-emerald-500 uppercase tracking-widest whitespace-nowrap">Model:</label>
-                <select
-                    value={textModelId} onChange={(e) => { setTextModelId(e.target.value); localStorage.setItem('tts-textModelId', e.target.value); }}
-                    className="bg-gray-800 text-white border-none rounded p-1 outline-none"
-                >
-                    {TEXT_MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
-              </div>
-              <p className="text-gray-500 font-mono">{APP_VERSION} | Neural Voice Engine</p>
+            <div className="flex items-center gap-2 bg-gray-900/50 p-2 rounded-lg border border-gray-800">
+              <label className="font-bold text-emerald-500 uppercase tracking-widest whitespace-nowrap">Model:</label>
+              <select
+                value={textModelId} onChange={(e) => { setTextModelId(e.target.value); localStorage.setItem('tts-textModelId', e.target.value); }}
+                className="bg-gray-800 text-white border-none rounded p-1 outline-none"
+              >
+                {TEXT_MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+            <p className="text-gray-500 font-mono">{APP_VERSION} | Neural Voice Engine</p>
           </div>
         </header>
 
@@ -397,9 +398,9 @@ const App: React.FC = () => {
           <VoiceSettings
             speakerConfigs={speakerConfigs} onSpeakerConfigChange={handleSpeakerConfigChange}
             onPreviewLine={(l) => {
-                const config = speakerConfigs.get(l.speaker);
-                const seedToUse = config ? config.seeds[0] : INITIAL_DEFAULT_SEEDS[0];
-                return generateSingleLineSpeech(`${constructFullPrefix(speakerConfigs.get(l.speaker)!)} ${l.text}`, speakerConfigs.get(l.speaker)?.voice || 'Kore', seedToUse, speakerConfigs.get(l.speaker)?.toneDescription).then(b => b && playAudio(b));
+              const config = speakerConfigs.get(l.speaker);
+              const seedToUse = config ? config.seeds[0] : INITIAL_DEFAULT_SEEDS[0];
+              return generateSingleLineSpeech(`${constructFullPrefix(speakerConfigs.get(l.speaker)!)} ${l.text}`, speakerConfigs.get(l.speaker)?.voice || 'Kore', seedToUse, speakerConfigs.get(l.speaker)?.toneDescription).then(b => b && playAudio(b));
             }}
             onPreviewSpeaker={handlePreviewSpeaker}
             dialogueLines={dialogueLines} onGenerateFullStory={handleGenerateFullStory} isGenerating={isGenerating}
@@ -418,46 +419,45 @@ const App: React.FC = () => {
       </div>
 
       {isGenerating && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-              <div className="bg-gray-900 border border-emerald-500/30 rounded-2xl p-8 max-w-lg w-full text-center shadow-2xl space-y-6 animate-fade-in">
-                  <div className="relative inline-block">
-                    <LoadingSpinner className="w-16 h-16 text-emerald-500" />
-                    <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-emerald-300">AI</div>
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-white">ระบบกำลังประมวลผลเสียง</h3>
-                    <div className="bg-black/40 rounded-lg p-4 border border-gray-800 text-left min-h-[120px] relative group">
-                        <p className="text-emerald-400 font-mono text-sm whitespace-pre-line leading-relaxed pr-10">
-                            {generationStatus || "กำลังเตรียมพากย์เสียง..."}
-                        </p>
-                        <button
-                          onClick={handleCopyStatus}
-                          className={`absolute top-2 right-2 p-2 rounded-lg transition-all border ${
-                            statusCopySuccess 
-                            ? "bg-emerald-600 text-white border-emerald-400" 
-                            : "bg-gray-800/80 text-gray-400 border-gray-700 hover:text-emerald-400 hover:border-emerald-500"
-                          }`}
-                          title="คัดลอกสถานะปัจจุบัน"
-                        >
-                          {statusCopySuccess ? (
-                            <span className="text-[10px] font-bold">Copied!</span>
-                          ) : (
-                            <CopyIcon className="w-4 h-4" />
-                          )}
-                        </button>
-                    </div>
-                  </div>
-                  <p className="text-gray-400 text-xs leading-relaxed">
-                      * คุณสามารถกดหยุดเพื่อบันทึกไฟล์เสียงเฉพาะส่วนที่สร้างเสร็จแล้วได้ทันที
-                  </p>
-                  <button 
-                    onClick={() => { isAbortingRef.current = true; }}
-                    className="w-full bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white border border-orange-500/30 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2"
-                  >
-                    <span>⏹ หยุดและเก็บส่วนที่เสร็จแล้ว (Finish Partial)</span>
-                  </button>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-emerald-500/30 rounded-2xl p-8 max-w-lg w-full text-center shadow-2xl space-y-6 animate-fade-in">
+            <div className="relative inline-block">
+              <LoadingSpinner className="w-16 h-16 text-emerald-500" />
+              <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-emerald-300">AI</div>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-white">ระบบกำลังประมวลผลเสียง</h3>
+              <div className="bg-black/40 rounded-lg p-4 border border-gray-800 text-left min-h-[120px] relative group">
+                <p className="text-emerald-400 font-mono text-sm whitespace-pre-line leading-relaxed pr-10">
+                  {generationStatus || "กำลังเตรียมพากย์เสียง..."}
+                </p>
+                <button
+                  onClick={handleCopyStatus}
+                  className={`absolute top-2 right-2 p-2 rounded-lg transition-all border ${statusCopySuccess
+                      ? "bg-emerald-600 text-white border-emerald-400"
+                      : "bg-gray-800/80 text-gray-400 border-gray-700 hover:text-emerald-400 hover:border-emerald-500"
+                    }`}
+                  title="คัดลอกสถานะปัจจุบัน"
+                >
+                  {statusCopySuccess ? (
+                    <span className="text-[10px] font-bold">Copied!</span>
+                  ) : (
+                    <CopyIcon className="w-4 h-4" />
+                  )}
+                </button>
               </div>
+            </div>
+            <p className="text-gray-400 text-xs leading-relaxed">
+              * คุณสามารถกดหยุดเพื่อบันทึกไฟล์เสียงเฉพาะส่วนที่สร้างเสร็จแล้วได้ทันที
+            </p>
+            <button
+              onClick={() => { isAbortingRef.current = true; }}
+              className="w-full bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white border border-orange-500/30 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2"
+            >
+              <span>⏹ หยุดและเก็บส่วนที่เสร็จแล้ว (Finish Partial)</span>
+            </button>
           </div>
+        </div>
       )}
 
       {toastMessage && (
@@ -468,19 +468,19 @@ const App: React.FC = () => {
       )}
 
       {isCloneModalOpen && (
-        <VoiceCloneModal 
-            onClose={() => setIsCloneModalOpen(false)}
-            onSave={(nv) => { const updated = [...customVoices, nv]; setCustomVoices(updated); localStorage.setItem('tts-customVoices', JSON.stringify(updated)); if (activeSpeakerForClone) handleSpeakerConfigChange(activeSpeakerForClone, { ...speakerConfigs.get(activeSpeakerForClone)!, voice: nv.id }); setIsCloneModalOpen(false); }}
-            onPreview={async (v) => generateSingleLineSpeech("Voice DNA analyzed and successfully cloned.", v.baseVoiceId!).then(b => b && playAudio(b))}
-            speakerName={activeSpeakerForClone}
+        <VoiceCloneModal
+          onClose={() => setIsCloneModalOpen(false)}
+          onSave={(nv) => { const updated = [...customVoices, nv]; setCustomVoices(updated); localStorage.setItem('tts-customVoices', JSON.stringify(updated)); if (activeSpeakerForClone) handleSpeakerConfigChange(activeSpeakerForClone, { ...speakerConfigs.get(activeSpeakerForClone)!, voice: nv.id }); setIsCloneModalOpen(false); }}
+          onPreview={async (v) => generateSingleLineSpeech("Voice DNA analyzed and successfully cloned.", v.baseVoiceId!).then(b => b && playAudio(b))}
+          speakerName={activeSpeakerForClone}
         />
       )}
 
       {isLibraryModalOpen && (
         <VoiceLibraryModal
-            onClose={() => setIsLibraryModalOpen(false)} customVoices={customVoices}
-            onUpdate={(u) => { setCustomVoices(u); localStorage.setItem('tts-customVoices', JSON.stringify(u)); }}
-            onPreview={async (v) => generateSingleLineSpeech(`Previewing voice ${v.name}.`, v.baseVoiceId!).then(b => b && playAudio(b))}
+          onClose={() => setIsLibraryModalOpen(false)} customVoices={customVoices}
+          onUpdate={(u) => { setCustomVoices(u); localStorage.setItem('tts-customVoices', JSON.stringify(u)); }}
+          onPreview={async (v) => generateSingleLineSpeech(`Previewing voice ${v.name}.`, v.baseVoiceId!).then(b => b && playAudio(b))}
         />
       )}
 
