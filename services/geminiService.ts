@@ -4,14 +4,12 @@ import type { DialogueLine, SpeakerConfig } from '../types';
 import { decode, createWavBlob } from '../utils/audio';
 import { DEFAULT_TONE } from '../constants';
 
-// ลบของเก่า: const getAi = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
-// วางของใหม่นี้ลงไปแทน:
+// ฟังก์ชันดึง AI instance พร้อมเช็ค API Key จาก localStorage หรือ process.env
 const getAi = () => {
   const savedKey = localStorage.getItem('gemini_api_key');
-    const apiKey = savedKey || (window as any).process?.env?.API_KEY || "";
-      return new GoogleGenAI({ apiKey });
-      };
-
+  const apiKey = savedKey || (window as any).process?.env?.API_KEY || "";
+  return new GoogleGenAI({ apiKey });
+};
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -192,14 +190,16 @@ export const generateMultiLineSpeech = async (
         
         const config = speakerConfigs.get(batch.speaker);
         if (config) {
-            // Get next seed for this speaker
+            // ดึง Voice Seed ถัดไปตามลำดับ 1-5
             const seedIdx = speakerSeedIndices.get(batch.speaker) || 0;
-            const seedToUse = config.seeds[seedIdx % 5];
+            const currentSeedIndex = (seedIdx % 5);
+            const seedToUse = config.seeds[currentSeedIndex];
             speakerSeedIndices.set(batch.speaker, seedIdx + 1);
 
             const percent = Math.round((processedChars / totalChars) * 100);
             const snippet = batch.text.length > 50 ? batch.text.substring(0, 50) + "..." : batch.text;
-            const progressLabel = `✅ งานที่เสร็จแล้ว: ${percent}%\n🔊 กำลังพากย์: ${batch.speaker} (ใช้ Voice Seed ${ (seedIdx % 5) + 1})\n📄 ข้อความปัจจุบัน: "${snippet}"`;
+            // แก้ไข: แสดงค่า Voice Seed ที่ใช้ในสถานะด้วย
+            const progressLabel = `✅ งานที่เสร็จแล้ว: ${percent}%\n🔊 กำลังพากย์: ${batch.speaker}\n🎲 ใช้ Voice Seed #${currentSeedIndex + 1}: ${seedToUse}\n📄 ข้อความปัจจุบัน: "${snippet}"`;
             
             const pcm = await callGeminiTTS(batch.text, config.voice, seedToUse, config.toneDescription, 1, onStatusUpdate, checkAborted, progressLabel);
             if (pcm) {
@@ -263,8 +263,9 @@ export const generateSeparateSpeakerSpeech = async (
           const batchText = speakerBatches[bIdx];
           const isLastBatchOverall = (sIdx === speakers.length - 1) && (bIdx === speakerBatches.length - 1);
           
-          // Seed rotation for speaker files
-          const seedToUse = config.seeds[bIdx % 5];
+          // Seed rotation สำหรับไฟล์แยก
+          const currentSeedIndex = (bIdx % 5);
+          const seedToUse = config.seeds[currentSeedIndex];
 
           let nextSnippet = "เปลี่ยนตัวละครถัดไป...";
           if (bIdx < speakerBatches.length - 1) {
@@ -276,7 +277,8 @@ export const generateSeparateSpeakerSpeech = async (
           }
 
           const snippet = batchText.length > 50 ? batchText.substring(0, 50) + "..." : batchText;
-          const progressLabel = `📂 สร้างไฟล์แยก: ${speaker} (รอบที่ ${bIdx + 1}, Seed ${ (bIdx % 5) + 1})\n📄 ข้อความปัจจุบัน: "${snippet}"`;
+          // แก้ไข: แสดงค่า Voice Seed ที่ใช้ในสถานะด้วย
+          const progressLabel = `📂 สร้างไฟล์แยก: ${speaker}\n🎲 รอบที่ ${bIdx + 1}, Voice Seed #${currentSeedIndex + 1}: ${seedToUse}\n📄 ข้อความปัจจุบัน: "${snippet}"`;
           
           const pcm = await callGeminiTTS(batchText, config.voice, seedToUse, config.toneDescription, 1, onStatusUpdate, checkAborted, progressLabel);
           if (pcm) {
