@@ -11,9 +11,11 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS, DEFAULT_TONE } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.9.9 (Multi-Seed Rotation)";
-const LAST_UPDATED = "Nov 21, 2025 00:05";
-const DEFAULT_SEED_BASE = 949222;
+const APP_VERSION = "v1.9.10 (Updated Default Seeds)";
+const LAST_UPDATED = "Nov 21, 2025 00:15";
+
+// User requested specific default seeds
+const INITIAL_DEFAULT_SEEDS = [805109, 834595, 838572, 843547, 868489];
 
 const App: React.FC = () => {
   // --- ระบบจัดการ API Key สำหรับใช้งานส่วนตัว ---
@@ -85,7 +87,12 @@ const App: React.FC = () => {
     });
   }, [generatedStoryAudio, storyPlaybackSpeed, storyPlaybackVolume]);
 
-  const createDefaultSeeds = (base: number = DEFAULT_SEED_BASE) => [base, base + 1, base + 2, base + 3, base + 4];
+  const createDefaultSeeds = (baseOverride?: number) => {
+    if (baseOverride !== undefined) {
+      return [baseOverride, baseOverride + 1, baseOverride + 2, baseOverride + 3, baseOverride + 4];
+    }
+    return [...INITIAL_DEFAULT_SEEDS];
+  };
 
   useEffect(() => {
     setOnPlaybackStateChange(setIsPlaying);
@@ -111,7 +118,7 @@ const App: React.FC = () => {
               // Migration for seeds array
               let seeds = config.seeds;
               if (!seeds || !Array.isArray(seeds)) {
-                  seeds = createDefaultSeeds(config.seed || DEFAULT_SEED_BASE);
+                  seeds = createDefaultSeeds(config.seed);
               }
               return [speaker, {
                   voice: config.voice || AVAILABLE_VOICES[0].id,
@@ -171,7 +178,8 @@ const App: React.FC = () => {
             emotion: 'with a serene, wise tone, articulating every word clearly and peacefully', 
             volume: 1, 
             speed: 'normal', 
-            seeds: createDefaultSeeds(DEFAULT_SEED_BASE + (voiceIndex * 10)),
+            // Use user-specified default seeds for new speakers, offset if not the first speaker to keep some variation
+            seeds: createDefaultSeeds(voiceIndex === 0 ? undefined : (INITIAL_DEFAULT_SEEDS[0] + (voiceIndex * 10))),
             toneDescription: DEFAULT_TONE,
           });
         }
@@ -305,7 +313,7 @@ const App: React.FC = () => {
       setAiLoadingAction(action);
       try {
           let prompt = "";
-          let systemInstruction = "You are a specialized AI assistant for Buddhist Dhamma story narrators. Keep the tone respectful, wise, and serene.";
+          let systemInstruction = "You are a specialized AI assistant for Dhamma story narrators. Keep the tone respectful, wise, and serene.";
           switch (action) {
               case 'idea': prompt = `Create a short, inspiring Buddhist Dhamma script outline or first few lines about "Inner Peace" or "Mindfulness". Use the format 'Speaker: Text'. Current script content: ${scriptText}`; break;
               case 'polish': prompt = `Improve the creative writing, flow, and vocabulary of the following script. Ensure it sounds natural for a narrator and maintains the established speaker tags. Script:\n${scriptText}`; break;
@@ -390,7 +398,7 @@ const App: React.FC = () => {
             speakerConfigs={speakerConfigs} onSpeakerConfigChange={handleSpeakerConfigChange}
             onPreviewLine={(l) => {
                 const config = speakerConfigs.get(l.speaker);
-                const seedToUse = config ? config.seeds[0] : DEFAULT_SEED_BASE;
+                const seedToUse = config ? config.seeds[0] : INITIAL_DEFAULT_SEEDS[0];
                 return generateSingleLineSpeech(`${constructFullPrefix(speakerConfigs.get(l.speaker)!)} ${l.text}`, speakerConfigs.get(l.speaker)?.voice || 'Kore', seedToUse, speakerConfigs.get(l.speaker)?.toneDescription).then(b => b && playAudio(b));
             }}
             onPreviewSpeaker={handlePreviewSpeaker}
