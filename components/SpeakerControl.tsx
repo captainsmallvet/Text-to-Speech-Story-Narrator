@@ -193,18 +193,18 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
           </div>
       </div>
         
-      {/* New Tone Description Field */}
+      {/* Updated Tone Description Field to Textarea for better visibility */}
       <div className="mb-4">
           <label htmlFor={`tone-${speakerName}`} className="block text-xs font-medium text-emerald-400 mb-1">
             Voice Tone / Aesthetic (แนะนำ: ระบุเพื่อความนุ่มนวล ลดเสียงแตก/แหลม)
           </label>
-          <input
-            type="text"
+          <textarea
             id={`tone-${speakerName}`}
+            rows={3}
             value={config.toneDescription || ''}
             onChange={(e) => onConfigChange({ ...config, toneDescription: e.target.value })}
-            placeholder="e.g. clear, deep, soft, warm, friendly tone..."
-            className="w-full bg-black/40 border border-gray-700 rounded-md p-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            placeholder="e.g. Professional, mellow broadcast style. Smooth, warm..."
+            className="w-full bg-black/40 border border-gray-700 rounded-md p-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
           />
       </div>
 

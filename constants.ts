@@ -10,7 +10,8 @@ export const AVAILABLE_VOICES: Voice[] = [
   { name: 'Enceladus (Male)', id: 'Enceladus' },
 ];
 
-export const DEFAULT_TONE = "Mellow";
+// ย้ายคำสั่งที่เคยซ่อนไว้ใน geminiService มาไว้ที่นี่เพื่อให้ผู้ใช้เห็นและแก้ไขได้ในหน้า UI
+export const DEFAULT_TONE = "Professional, mellow broadcast style. Smooth, warm, and non-fatiguing, with controlled high frequencies to avoid piercing or sibilant artifacts. Maintain a perfectly consistent pace.";
 
 export const TEXT_MODELS: TextModel[] = [
   { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash (Fast)', description: 'Best for simple logic and quick tasks' },
