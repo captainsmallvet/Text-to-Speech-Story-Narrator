@@ -14,8 +14,8 @@ import { CopyIcon, LoadingSpinner } from './components/icons';
 const APP_VERSION = "v1.9.11 (Sequence Seeds)";
 const LAST_UPDATED = "Nov 21, 2025 00:30";
 
-// User requested specific default seeds in sequence
-const INITIAL_DEFAULT_SEEDS = [949222, 949223, 949224, 949225, 949226];
+// อัปเดตค่าเริ่มต้นตามคำขอผู้ใช้: 949222, 949225, 949226, 949222, 949225
+const INITIAL_DEFAULT_SEEDS = [949222, 949225, 949226, 949222, 949225];
 
 const App: React.FC = () => {
   // --- ระบบจัดการ API Key สำหรับใช้งานส่วนตัว ---

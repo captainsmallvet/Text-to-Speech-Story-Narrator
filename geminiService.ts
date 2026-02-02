@@ -56,11 +56,11 @@ const callGeminiTTS = async (
 
     const ai = getAi();
     try {
-        // ใช้ Tone ที่ส่งมาจาก UI โดยตรง (ซึ่งขณะนี้มีคำสั่งคุณภาพบรรจุอยู่เป็นค่าเริ่มต้น)
-        const toneToUse = tone || DEFAULT_TONE;
+        // Use tone from UI directly, fallback to DEFAULT_TONE (which is now empty)
+        const toneToUse = (tone !== undefined) ? tone : DEFAULT_TONE;
         
-        // ไม่มีการใส่ "qualityReinforcement" ซ้ำซ้อนในโค้ด เพื่อให้ผู้ใช้ปรับแต่งเองได้ที่ช่อง Tone
-        const finalPrompt = `${toneToUse}. Text: ${text}`;
+        // Construct prompt: If tone is provided, use it as a prefix
+        const finalPrompt = toneToUse.trim() ? `${toneToUse.trim()}. Text: ${text}` : text;
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash-preview-tts",
