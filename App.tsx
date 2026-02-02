@@ -125,7 +125,7 @@ const App: React.FC = () => {
                   promptPrefix: config.promptPrefix || '',
                   emotion: config.emotion || 'with a serene, wise tone, articulating every word clearly and peacefully',
                   volume: config.volume || 1,
-                  speed: config.speed || 'normal',
+                  speed: config.speed || 'slightly_slow', // Default to 'Comfortable' if missing
                   seeds: seeds,
                   toneDescription: config.toneDescription || DEFAULT_TONE,
               }];
@@ -177,7 +177,7 @@ const App: React.FC = () => {
             promptPrefix: '', 
             emotion: 'with a serene, wise tone, articulating every word clearly and peacefully', 
             volume: 1, 
-            speed: 'normal', 
+            speed: 'slightly_slow', // Default to 'Comfortable'
             // Use user-specified default seeds for new speakers, offset if not the first speaker to keep some variation
             seeds: createDefaultSeeds(voiceIndex === 0 ? undefined : (INITIAL_DEFAULT_SEEDS[0] + (voiceIndex * 10))),
             toneDescription: DEFAULT_TONE,
