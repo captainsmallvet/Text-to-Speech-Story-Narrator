@@ -1,3 +1,4 @@
+
 import type { Voice, TextModel } from './types';
 
 export const AVAILABLE_VOICES: Voice[] = [
@@ -9,7 +10,7 @@ export const AVAILABLE_VOICES: Voice[] = [
   { name: 'Enceladus (Male)', id: 'Enceladus' },
 ];
 
-export const DEFAULT_TONE = "studio quality, no high-frequency piercing, broadcast style";
+export const DEFAULT_TONE = "Mellow, no high-frequency piercing";
 
 export const TEXT_MODELS: TextModel[] = [
   { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash (Fast)', description: 'Best for simple logic and quick tasks' },
