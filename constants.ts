@@ -10,7 +10,7 @@ export const AVAILABLE_VOICES: Voice[] = [
   { name: 'Enceladus (Male)', id: 'Enceladus' },
 ];
 
-export const DEFAULT_TONE = "Mellow, no high-frequency piercing";
+export const DEFAULT_TONE = "Mellow";
 
 export const TEXT_MODELS: TextModel[] = [
   { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash (Fast)', description: 'Best for simple logic and quick tasks' },
