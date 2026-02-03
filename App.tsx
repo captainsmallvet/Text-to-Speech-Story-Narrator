@@ -1,18 +1,18 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import ScriptEditor from './components/ScriptEditor';
-import VoiceSettings from './components/VoiceSettings';
-import VoiceCloneModal from './components/VoiceCloneModal';
-import VoiceLibraryModal from './components/VoiceLibraryModal';
-import Modal from './components/Modal';
-import { generateSingleLineSpeech, generateMultiLineSpeech, generateSeparateSpeakerSpeech, performTextReasoning } from './services/geminiService';
-import { playAudio, downloadAudio, setOnPlaybackStateChange, stopAudio } from './utils/audio';
-import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
-import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS, DEFAULT_TONE } from './constants';
-import { CopyIcon, LoadingSpinner } from './components/icons';
+import ScriptEditor from './components/ScriptEditor.tsx';
+import VoiceSettings from './components/VoiceSettings.tsx';
+import VoiceCloneModal from './components/VoiceCloneModal.tsx';
+import VoiceLibraryModal from './components/VoiceLibraryModal.tsx';
+import Modal from './components/Modal.tsx';
+import { generateSingleLineSpeech, generateMultiLineSpeech, generateSeparateSpeakerSpeech, performTextReasoning } from './services/geminiService.ts';
+import { playAudio, downloadAudio, setOnPlaybackStateChange, stopAudio } from './utils/audio.ts';
+import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types.ts';
+import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS, DEFAULT_TONE } from './constants.ts';
+import { CopyIcon, LoadingSpinner } from './components/icons.tsx';
 
-const APP_VERSION = "v1.9.24 (Custom DNA Display Fix)";
-const LAST_UPDATED = "Nov 21, 2025 04:10";
+const APP_VERSION = "v1.9.25 (Deployment Fix)";
+const LAST_UPDATED = "Nov 21, 2025 04:30";
 
 const INITIAL_DEFAULT_SEEDS = [949222, 949225, 949226, 949222, 949225];
 
@@ -90,14 +90,14 @@ const App: React.FC = () => {
 
     if (savedCustomVoices) {
         try {
-            const parsedData = JSON.parse(savedCustomVoices) as any;
+            const parsedData = JSON.parse(savedCustomVoices);
             if (Array.isArray(parsedData)) {
                 const migratedVoices: Voice[] = parsedData.filter((v: any) => v && v.id).map((v: any) => ({
                     id: v.id, 
                     name: v.name, 
                     isCustom: true, 
                     baseVoiceId: v.baseVoiceId || AVAILABLE_VOICES[0].id,
-                    toneDescription: v.toneDescription || '' // ตรวจสอบและโหลด DNA เดิมถ้ามี
+                    toneDescription: v.toneDescription || ''
                 }));
                 setCustomVoices(migratedVoices);
             }
@@ -106,7 +106,7 @@ const App: React.FC = () => {
 
     if (savedConfigs) {
       try {
-        const parsedConfigs: [string, any][] = JSON.parse(savedConfigs) as any;
+        const parsedConfigs: [string, any][] = JSON.parse(savedConfigs);
         if (Array.isArray(parsedConfigs)) {
           const migratedConfigs = new Map<string, SpeakerConfig>(parsedConfigs.map(([speaker, config]) => {
               let seeds = config.seeds;

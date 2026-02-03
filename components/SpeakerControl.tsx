@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
-import type { SpeakerConfig, Voice } from '../types';
-import { AVAILABLE_VOICES, EMOTIONS, SPEEDS } from '../constants';
-import { PlayIcon, LoadingSpinner, VoiceCloneIcon, StopIcon } from './icons';
+import type { SpeakerConfig, Voice } from '../types.ts';
+import { AVAILABLE_VOICES, EMOTIONS, SPEEDS } from '../constants.ts';
+import { PlayIcon, LoadingSpinner, VoiceCloneIcon, StopIcon } from './icons.tsx';
 
 interface SpeakerControlProps {
   speakerName: string;
@@ -116,7 +116,6 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
         </div>
       </div>
 
-      {/* ปรับปรุงเลย์เอาต์ Dropdown ให้เรียงคนละบรรทัด (Vertical Stack) */}
       <div className="flex flex-col gap-4 mb-4">
         <div>
           <label htmlFor={`voice-${speakerName}`} className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
@@ -178,7 +177,6 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
         </div>
       </div>
 
-      {/* DNA INFO PANEL */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
           <div className="flex flex-col">
               <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
