@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { SpeakerConfig, Voice } from '../types';
 import { AVAILABLE_VOICES, EMOTIONS, SPEEDS } from '../constants';
 import { PlayIcon, LoadingSpinner, VoiceCloneIcon, StopIcon } from './icons';
@@ -27,6 +27,20 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
 }) => {
   const [isPreviewing, setIsPreviewing] = useState(false);
   const customVoices = allVoices.filter(v => v.isCustom);
+
+  // ข้อมูลของเสียงที่เลือกในปัจจุบัน
+  const selectedVoiceData = useMemo(() => {
+    const found = allVoices.find(v => v.id === config.voice);
+    return found;
+  }, [config.voice, allVoices]);
+
+  // ข้อมูลเสียงพื้นฐาน (สำหรับ Custom Voice)
+  const baseVoiceData = useMemo(() => {
+    if (selectedVoiceData?.isCustom && selectedVoiceData.baseVoiceId) {
+        return AVAILABLE_VOICES.find(v => v.id === selectedVoiceData.baseVoiceId);
+    }
+    return null;
+  }, [selectedVoiceData]);
 
   const handlePreviewClick = async () => {
     setIsPreviewing(true);
@@ -58,7 +72,7 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
 
   return (
     <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 transition-all hover:border-cyan-500">
-      <div className="flex flex-wrap justify-between items-center gap-3 mb-3">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
         <h3 className="text-lg font-semibold text-cyan-400">{speakerName}</h3>
         <div className="flex items-center gap-2 flex-wrap">
            <button
@@ -102,16 +116,17 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+      {/* ปรับปรุงเลย์เอาต์ Dropdown ให้เรียงคนละบรรทัด (Vertical Stack) */}
+      <div className="flex flex-col gap-4 mb-4">
         <div>
-          <label htmlFor={`voice-${speakerName}`} className="block text-xs font-medium text-gray-400 mb-1">
+          <label htmlFor={`voice-${speakerName}`} className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
             Voice Model
           </label>
           <select
             id={`voice-${speakerName}`}
             value={config.voice}
             onChange={(e) => onConfigChange({ ...config, voice: e.target.value })}
-            className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-gray-700 border border-gray-600 rounded-md p-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <optgroup label="Pre-built Voices">
                 {AVAILABLE_VOICES.map((voice: Voice) => (
@@ -132,14 +147,14 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
           </select>
         </div>
         <div>
-          <label htmlFor={`emotion-${speakerName}`} className="block text-xs font-medium text-gray-400 mb-1">
+          <label htmlFor={`emotion-${speakerName}`} className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
             Emotion / Style
           </label>
           <select
             id={`emotion-${speakerName}`}
             value={config.emotion}
             onChange={(e) => onConfigChange({ ...config, emotion: e.target.value })}
-            className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-gray-700 border border-gray-600 rounded-md p-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {EMOTIONS.map(emotion => (
               <option key={emotion.value} value={emotion.value}>{emotion.label}</option>
@@ -147,20 +162,61 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
           </select>
         </div>
         <div>
-          <label htmlFor={`speed-${speakerName}`} className="block text-xs font-medium text-gray-400 mb-1">
+          <label htmlFor={`speed-${speakerName}`} className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
             Narrator Speed
           </label>
           <select
             id={`speed-${speakerName}`}
             value={config.speed}
             onChange={(e) => onConfigChange({ ...config, speed: e.target.value })}
-            className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-gray-700 border border-gray-600 rounded-md p-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {SPEEDS.map(speed => (
               <option key={speed.value} value={speed.value}>{speed.label}</option>
             ))}
           </select>
         </div>
+      </div>
+
+      {/* DNA INFO PANEL */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+          <div className="flex flex-col">
+              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                Base Voice Profile {selectedVoiceData?.isCustom ? "(จากเสียงหลัก)" : ""}
+              </label>
+              <div className="bg-black/60 border border-gray-700/50 rounded-lg p-2 text-[11px] text-gray-400 italic leading-relaxed min-h-[50px] flex items-center">
+                  {selectedVoiceData?.isCustom 
+                    ? (baseVoiceData?.toneDescription || "No base profile info.")
+                    : (selectedVoiceData?.toneDescription || "No profile info.")
+                  }
+              </div>
+          </div>
+
+          {selectedVoiceData?.isCustom && (
+              <div className="flex flex-col">
+                  <label className="block text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1">
+                    Custom Clone DNA (จากไฟล์ที่อัปโหลด)
+                  </label>
+                  <div className="bg-emerald-900/10 border border-emerald-900/40 rounded-lg p-2 text-[11px] text-emerald-300 leading-relaxed min-h-[50px] flex items-center">
+                      {selectedVoiceData.toneDescription || "Legacy custom voice (No DNA captured)."}
+                  </div>
+              </div>
+          )}
+      </div>
+
+      <div className="mb-4">
+          <label htmlFor={`tone-${speakerName}`} className="block text-xs font-medium text-gray-300 mb-1 flex items-center gap-2">
+            <span>Tone & Style Refinement</span>
+            <span className="text-[10px] text-gray-500 font-normal italic">(ปรับแต่งเสียงเพิ่มเติมด้วยข้อความของคุณ)</span>
+          </label>
+          <textarea
+            id={`tone-${speakerName}`}
+            rows={2}
+            value={config.toneDescription || ''}
+            onChange={(e) => onConfigChange({ ...config, toneDescription: e.target.value })}
+            placeholder="เช่น: พากย์ให้ดูอบอุ่นขึ้น, เน้นเสียงกระซิบเบาๆ, เว้นจังหวะท้ายประโยคให้ยาวขึ้น..."
+            className="w-full bg-gray-900/40 border border-gray-700 rounded-md p-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 resize-none"
+          />
       </div>
 
       <div className="mb-4">
@@ -191,21 +247,6 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
                 </div>
             ))}
           </div>
-      </div>
-        
-      {/* Updated Tone Description Field to Textarea for better visibility */}
-      <div className="mb-4">
-          <label htmlFor={`tone-${speakerName}`} className="block text-xs font-medium text-emerald-400 mb-1">
-            Voice Tone / Aesthetic (แนะนำ: ระบุเพื่อความนุ่มนวล ลดเสียงแตก/แหลม)
-          </label>
-          <textarea
-            id={`tone-${speakerName}`}
-            rows={3}
-            value={config.toneDescription || ''}
-            onChange={(e) => onConfigChange({ ...config, toneDescription: e.target.value })}
-            placeholder="e.g. Professional, mellow broadcast style. Smooth, warm..."
-            className="w-full bg-black/40 border border-gray-700 rounded-md p-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
-          />
       </div>
 
       <div>

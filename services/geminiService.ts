@@ -4,12 +4,8 @@ import type { DialogueLine, SpeakerConfig } from '../types';
 import { decode, createWavBlob } from '../utils/audio';
 import { DEFAULT_TONE } from '../constants';
 
-// ฟังก์ชันดึง AI instance พร้อมเช็ค API Key จาก localStorage หรือ process.env
-const getAi = () => {
-  const savedKey = localStorage.getItem('gemini_api_key');
-  const apiKey = savedKey || (window as any).process?.env?.API_KEY || "";
-  return new GoogleGenAI({ apiKey });
-};
+// Always use process.env.API_KEY directly in the named parameter for GoogleGenAI.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -56,13 +52,13 @@ const callGeminiTTS = async (
 ): Promise<Uint8Array | null> => {
     if (checkAborted && checkAborted()) throw new Error("USER_ABORTED");
 
-    const ai = getAi();
     try {
         const toneToUse = tone || DEFAULT_TONE;
         const qualityReinforcement = `Synthesize this in a professional, mellow broadcast style. Tone description: ${toneToUse}. Ensure the audio is smooth, warm, and non-fatiguing, with controlled high frequencies to avoid piercing or sibilant artifacts. Maintain a perfectly consistent pace.`;
         
         const finalPrompt = `${qualityReinforcement} Text: ${text}`;
 
+        // Using ai instance directly with generateContent for TTS.
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash-preview-tts",
             contents: [{ parts: [{ text: finalPrompt }] }],
@@ -77,6 +73,7 @@ const callGeminiTTS = async (
             },
         });
 
+        // The audio data is returned as raw PCM bytes in the response candidates.
         const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
         if (base64Audio) return decode(base64Audio);
         throw new Error("No audio data returned from API.");
@@ -197,7 +194,6 @@ export const generateMultiLineSpeech = async (
             const percent = Math.round((processedChars / totalChars) * 100);
             const snippet = batch.text.length > 50 ? batch.text.substring(0, 50) + "..." : batch.text;
             
-            // Reverted to cleaner label without explicit seed values
             const progressLabel = `✅ งานที่เสร็จแล้ว: ${percent}%\n🔊 กำลังพากย์: ${batch.speaker}\n📄 ข้อความปัจจุบัน: "${snippet}"`;
             
             const pcm = await callGeminiTTS(batch.text, config.voice, seedToUse, config.toneDescription, 1, onStatusUpdate, checkAborted, progressLabel);
@@ -274,8 +270,6 @@ export const generateSeparateSpeakerSpeech = async (
           }
 
           const snippet = batchText.length > 50 ? batchText.substring(0, 50) + "..." : batchText;
-          
-          // Reverted to cleaner label without explicit seed values
           const progressLabel = `📂 สร้างไฟล์แยก: ${speaker}\n📄 ข้อความปัจจุบัน: "${snippet}"`;
           
           const pcm = await callGeminiTTS(batchText, config.voice, seedToUse, config.toneDescription, 1, onStatusUpdate, checkAborted, progressLabel);
@@ -300,7 +294,6 @@ export const performTextReasoning = async (
   modelId: string,
   systemInstruction?: string
 ): Promise<string> => {
-  const ai = getAi();
   try {
     const response = await ai.models.generateContent({
       model: modelId,
