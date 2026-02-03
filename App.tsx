@@ -11,35 +11,33 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS, DEFAULT_TONE } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.9.12 (Updated Defaults)";
-const LAST_UPDATED = "Nov 21, 2025 01:00";
+const APP_VERSION = "v1.9.15 (Voice DNA Sync)";
+const LAST_UPDATED = "Nov 21, 2025 01:30";
 
-// อัปเดตค่าเริ่มต้นตามคำขอผู้ใช้: 949222, 949225, 949226, 949222, 949225
 const INITIAL_DEFAULT_SEEDS = [949222, 949225, 949226, 949222, 949225];
 
 const App: React.FC = () => {
-  // --- ระบบจัดการ API Key สำหรับใช้งานส่วนตัว ---
-    const [inputKey, setInputKey] = useState<string>('');
+  const [inputKey, setInputKey] = useState<string>('');
 
-      useEffect(() => {
-          const savedKey = localStorage.getItem('gemini_api_key');
-              if (savedKey) {
-                    setInputKey(savedKey);
-                          (window as any).process = { env: { API_KEY: savedKey } };
-                              } else {
-                                    setInputKey('no API key');
-                                        }
-                                          }, []);
+  useEffect(() => {
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (savedKey) {
+      setInputKey(savedKey);
+      (window as any).process = { env: { API_KEY: savedKey } };
+    } else {
+      setInputKey('no API key');
+    }
+  }, []);
 
-                                            const handleSendKey = () => {
-                                                if (inputKey && inputKey !== 'no API key') {
-                                                      localStorage.setItem('gemini_api_key', inputKey);
-                                                            alert("บันทึก API Key เรียบร้อยแล้วครับ");
-                                                                  window.location.reload(); 
-                                                                      }
-                                                                        };
+  const handleSendKey = () => {
+    if (inputKey && inputKey !== 'no API key') {
+      localStorage.setItem('gemini_api_key', inputKey);
+      alert("บันทึก API Key เรียบร้อยแล้วครับ");
+      window.location.reload(); 
+    }
+  };
+
   const isAbortingRef = useRef(false);
-
   const [scriptText, setScriptText] = useState<string>('');
   const [dialogueLines, setDialogueLines] = useState<DialogueLine[]>([]);
   const [speakerConfigs, setSpeakerConfigs] = useState<Map<string, SpeakerConfig>>(new Map());
@@ -76,11 +74,15 @@ const App: React.FC = () => {
       const currentConfig = prevConfigs.get(speaker);
       const newConfigs = new Map(prevConfigs);
       
-      // Auto-update tone description if voice changed to a custom one
+      // Auto-update tone description if voice changed
       if (currentConfig && currentConfig.voice !== newConfig.voice) {
           const customVoice = customVoices.find(v => v.id === newConfig.voice);
           if (customVoice && customVoice.toneDescription) {
+              // For custom voices, use their analyzed DNA
               newConfig.toneDescription = customVoice.toneDescription;
+          } else {
+              // For standard voices, reset to default tone or empty
+              newConfig.toneDescription = DEFAULT_TONE;
           }
       }
       
@@ -138,7 +140,6 @@ const App: React.FC = () => {
         const parsedConfigs: [string, any][] = JSON.parse(savedConfigs) as any;
         if (Array.isArray(parsedConfigs)) {
           const migratedConfigs = new Map<string, SpeakerConfig>(parsedConfigs.map(([speaker, config]) => {
-              // Migration for seeds array
               let seeds = config.seeds;
               if (!seeds || !Array.isArray(seeds)) {
                   seeds = createDefaultSeeds(config.seed);
@@ -146,7 +147,6 @@ const App: React.FC = () => {
               return [speaker, {
                   voice: config.voice || AVAILABLE_VOICES[0].id,
                   promptPrefix: config.promptPrefix || '',
-                  // Updated migration defaults to 'none' and 'normal'
                   emotion: config.emotion || 'none',
                   volume: config.volume || 1,
                   speed: config.speed || 'normal', 
@@ -188,7 +188,6 @@ const App: React.FC = () => {
           newConfigs.set(speaker, {
             voice: AVAILABLE_VOICES[voiceIndex % AVAILABLE_VOICES.length].id,
             promptPrefix: '', 
-            // Updated default values: Emotion = 'none', Speed = 'normal'
             emotion: 'none', 
             volume: 1, 
             speed: 'normal', 
@@ -363,7 +362,6 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-950 text-white p-4 lg:p-8 font-sans">
       <div className="max-w-7xl mx-auto">
-      {/* API Key Management Bar */}
               <div className="mb-6 p-4 bg-gray-900 border border-emerald-500/30 rounded-xl">
                         <div className="flex flex-col gap-2">
                                     <label className="text-xs font-bold text-emerald-400 uppercase text-left">
