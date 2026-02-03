@@ -11,8 +11,8 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS, DEFAULT_TONE } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.9.11 (Sequence Seeds)";
-const LAST_UPDATED = "Nov 21, 2025 00:30";
+const APP_VERSION = "v1.9.12 (Updated Defaults)";
+const LAST_UPDATED = "Nov 21, 2025 01:00";
 
 // อัปเดตค่าเริ่มต้นตามคำขอผู้ใช้: 949222, 949225, 949226, 949222, 949225
 const INITIAL_DEFAULT_SEEDS = [949222, 949225, 949226, 949222, 949225];
@@ -146,9 +146,10 @@ const App: React.FC = () => {
               return [speaker, {
                   voice: config.voice || AVAILABLE_VOICES[0].id,
                   promptPrefix: config.promptPrefix || '',
-                  emotion: config.emotion || 'with a serene, wise tone, articulating every word clearly and peacefully',
+                  // Updated migration defaults to 'none' and 'normal'
+                  emotion: config.emotion || 'none',
                   volume: config.volume || 1,
-                  speed: config.speed || 'slow', 
+                  speed: config.speed || 'normal', 
                   seeds: seeds,
                   toneDescription: config.toneDescription || DEFAULT_TONE,
               }];
@@ -187,9 +188,10 @@ const App: React.FC = () => {
           newConfigs.set(speaker, {
             voice: AVAILABLE_VOICES[voiceIndex % AVAILABLE_VOICES.length].id,
             promptPrefix: '', 
-            emotion: 'with a serene, wise tone, articulating every word clearly and peacefully', 
+            // Updated default values: Emotion = 'none', Speed = 'normal'
+            emotion: 'none', 
             volume: 1, 
-            speed: 'slow', 
+            speed: 'normal', 
             seeds: createDefaultSeeds(voiceIndex === 0 ? undefined : (INITIAL_DEFAULT_SEEDS[0] + (voiceIndex * 10))),
             toneDescription: DEFAULT_TONE,
           });
