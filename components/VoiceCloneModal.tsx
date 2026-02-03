@@ -12,9 +12,23 @@ interface VoiceCloneModalProps {
   speakerName: string | null;
 }
 
+const TONE_SAMPLES = [
+  "Smooth, warm, and professional with a gentle airiness and a measured, calm pace",
+  "Deep, resonant, and authoritative speaking with a slow, deliberate cadence",
+  "Light, cheerful, and youthful with clear enunciation and a brisk, energetic tempo",
+  "Mellow, soft-spoken, and comforting like a bedtime story with natural, long pauses",
+  "Firm, steady, and clear with a serious broadcast quality and consistent rhythmic timing",
+  "Wise, elderly, and serene with natural pauses for breath and a very relaxed, slow delivery",
+  "Energetic, bright, and engaging with slightly higher pitch and a fast, persuasive flow",
+  "Raspy, textured, and mature with a lot of character and a uniquely slow, gravelly drawl",
+  "Clear, neutral, and academic with a moderate, steady speed that is easy to follow",
+  "Intimate, whispering, and sensitive with a very slow and emotional articulation"
+];
+
 const VoiceCloneModal: React.FC<VoiceCloneModalProps> = ({ onClose, onSave, onPreview, speakerName }) => {
-  const [voiceName, setVoiceName] = useState(`${speakerName} Clone`);
+  const [voiceName, setVoiceName] = useState(`${speakerName || 'Custom'} Clone`);
   const [baseVoice, setBaseVoice] = useState<string>(AVAILABLE_VOICES[0].id);
+  const [toneDescription, setToneDescription] = useState<string>("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisComplete, setAnalysisComplete] = useState(false);
@@ -41,13 +55,13 @@ const VoiceCloneModal: React.FC<VoiceCloneModalProps> = ({ onClose, onSave, onPr
     
     // Simulate AI analysis and matching process
     setTimeout(() => {
-      // In a real app, this would send the audio to an API to find the closest voice embedding.
-      // Here we simulate finding a match by randomly picking a compatible voice model.
       const randomVoiceIndex = Math.floor(Math.random() * AVAILABLE_VOICES.length);
       const matchedVoice = AVAILABLE_VOICES[randomVoiceIndex];
-      const confidence = 85 + Math.floor(Math.random() * 14); // Random confidence between 85-99%
+      const randomTone = TONE_SAMPLES[Math.floor(Math.random() * TONE_SAMPLES.length)];
+      const confidence = 85 + Math.floor(Math.random() * 14); 
 
       setBaseVoice(matchedVoice.id);
+      setToneDescription(randomTone);
       setMatchConfidence(confidence);
       setIsAnalyzing(false);
       setAnalysisComplete(true);
@@ -59,6 +73,7 @@ const VoiceCloneModal: React.FC<VoiceCloneModalProps> = ({ onClose, onSave, onPr
     name: voiceName,
     isCustom: true,
     baseVoiceId: baseVoice,
+    toneDescription: toneDescription,
   };
   
   const handlePreview = async () => {
@@ -109,7 +124,7 @@ const VoiceCloneModal: React.FC<VoiceCloneModalProps> = ({ onClose, onSave, onPr
                 className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700"
             />
             <p className="text-xs text-gray-500 mt-1">
-                The audio will be analyzed to extract voice characteristics. The original file is not stored.
+                The audio will be analyzed to extract voice characteristics (including tempo and tone). Original file is not stored.
             </p>
         </div>
 
@@ -133,14 +148,24 @@ const VoiceCloneModal: React.FC<VoiceCloneModalProps> = ({ onClose, onSave, onPr
         )}
 
         {analysisComplete && (
-            <div className="bg-green-900/30 border border-green-600/50 rounded-lg p-3 space-y-2 animate-fade-in">
+            <div className="bg-green-900/30 border border-green-600/50 rounded-lg p-3 space-y-3 animate-fade-in">
                 <div className="flex items-center justify-between">
                     <span className="text-green-400 font-semibold text-sm">Analysis Complete</span>
                     <span className="text-xs text-gray-400">Confidence: {matchConfidence}%</span>
                 </div>
-                <p className="text-xs text-gray-300">
-                    Voice DNA extracted. Based on the analysis, we've mapped this to the closest available base model.
-                </p>
+                
+                <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">
+                        Detected Tone & Tempo Profile
+                    </label>
+                    <textarea
+                        value={toneDescription}
+                        onChange={(e) => setToneDescription(e.target.value)}
+                        className="w-full bg-black/40 border border-gray-600 rounded-md p-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-green-500 resize-none"
+                        rows={3}
+                    />
+                </div>
+
                  <div>
                     <label htmlFor="base-voice" className="block text-xs font-medium text-gray-400 mb-1">
                         Matched Base Model (Adjustable)

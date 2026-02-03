@@ -22,6 +22,8 @@ export interface Voice {
   isCustom?: boolean;
   // Which pre-built voice to use for playback of custom voices
   baseVoiceId?: string; 
+  // Recommended tone description found during analysis
+  toneDescription?: string;
 }
 
 export interface TextModel {

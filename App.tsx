@@ -73,11 +73,21 @@ const App: React.FC = () => {
 
   const handleSpeakerConfigChange = useCallback((speaker: string, newConfig: SpeakerConfig) => {
     setSpeakerConfigs(prevConfigs => {
+      const currentConfig = prevConfigs.get(speaker);
       const newConfigs = new Map(prevConfigs);
+      
+      // Auto-update tone description if voice changed to a custom one
+      if (currentConfig && currentConfig.voice !== newConfig.voice) {
+          const customVoice = customVoices.find(v => v.id === newConfig.voice);
+          if (customVoice && customVoice.toneDescription) {
+              newConfig.toneDescription = customVoice.toneDescription;
+          }
+      }
+      
       newConfigs.set(speaker, newConfig);
       return newConfigs;
     });
-  }, []);
+  }, [customVoices]);
 
   const handlePlayFullStory = useCallback(async () => {
     if (!generatedStoryAudio) return;
@@ -110,6 +120,19 @@ const App: React.FC = () => {
     if (savedMaxChars) setMaxCharsPerBatch(parseInt(savedMaxChars) || 3000);
     if (savedDelay) setInterBatchDelay(parseInt(savedDelay) || 120);
 
+    if (savedCustomVoices) {
+        try {
+            const parsedData = JSON.parse(savedCustomVoices) as any;
+            if (Array.isArray(parsedData)) {
+                const migratedVoices: Voice[] = parsedData.filter((v: any) => v && v.id).map((v: any) => ({
+                    id: v.id, name: v.name, isCustom: true, baseVoiceId: v.baseVoiceId || AVAILABLE_VOICES[0].id,
+                    toneDescription: v.toneDescription || ''
+                }));
+                setCustomVoices(migratedVoices);
+            }
+        } catch (e) { console.error(e); }
+    }
+
     if (savedConfigs) {
       try {
         const parsedConfigs: [string, any][] = JSON.parse(savedConfigs) as any;
@@ -125,7 +148,7 @@ const App: React.FC = () => {
                   promptPrefix: config.promptPrefix || '',
                   emotion: config.emotion || 'with a serene, wise tone, articulating every word clearly and peacefully',
                   volume: config.volume || 1,
-                  speed: config.speed || 'slow', // Default to 'Slow' if missing
+                  speed: config.speed || 'slow', 
                   seeds: seeds,
                   toneDescription: config.toneDescription || DEFAULT_TONE,
               }];
@@ -133,17 +156,6 @@ const App: React.FC = () => {
           setSpeakerConfigs(migratedConfigs);
         }
       } catch (e) { console.error(e); }
-    }
-    if (savedCustomVoices) {
-        try {
-            const parsedData = JSON.parse(savedCustomVoices) as any;
-            if (Array.isArray(parsedData)) {
-                const migratedVoices: Voice[] = parsedData.filter((v: any) => v && v.id).map((v: any) => ({
-                    id: v.id, name: v.name, isCustom: true, baseVoiceId: v.baseVoiceId || AVAILABLE_VOICES[0].id,
-                }));
-                setCustomVoices(migratedVoices);
-            }
-        } catch (e) { console.error(e); }
     }
   }, []);
 
@@ -177,8 +189,7 @@ const App: React.FC = () => {
             promptPrefix: '', 
             emotion: 'with a serene, wise tone, articulating every word clearly and peacefully', 
             volume: 1, 
-            speed: 'slow', // Default to 'Slow'
-            // Use user-specified default seeds for new speakers, offset if not the first speaker to keep some variation
+            speed: 'slow', 
             seeds: createDefaultSeeds(voiceIndex === 0 ? undefined : (INITIAL_DEFAULT_SEEDS[0] + (voiceIndex * 10))),
             toneDescription: DEFAULT_TONE,
           });
@@ -470,8 +481,23 @@ const App: React.FC = () => {
       {isCloneModalOpen && (
         <VoiceCloneModal 
             onClose={() => setIsCloneModalOpen(false)}
-            onSave={(nv) => { const updated = [...customVoices, nv]; setCustomVoices(updated); localStorage.setItem('tts-customVoices', JSON.stringify(updated)); if (activeSpeakerForClone) handleSpeakerConfigChange(activeSpeakerForClone, { ...speakerConfigs.get(activeSpeakerForClone)!, voice: nv.id }); setIsCloneModalOpen(false); }}
-            onPreview={async (v) => generateSingleLineSpeech("Voice DNA analyzed and successfully cloned.", v.baseVoiceId!).then(b => b && playAudio(b))}
+            onSave={(nv) => { 
+                const updated = [...customVoices, nv]; 
+                setCustomVoices(updated); 
+                localStorage.setItem('tts-customVoices', JSON.stringify(updated)); 
+                if (activeSpeakerForClone) {
+                    const currentConfig = speakerConfigs.get(activeSpeakerForClone);
+                    if (currentConfig) {
+                        handleSpeakerConfigChange(activeSpeakerForClone, { 
+                            ...currentConfig, 
+                            voice: nv.id,
+                            toneDescription: nv.toneDescription || currentConfig.toneDescription
+                        });
+                    }
+                }
+                setIsCloneModalOpen(false); 
+            }}
+            onPreview={async (v) => generateSingleLineSpeech(`Voice DNA analyzed. ${v.toneDescription || ''}`, v.baseVoiceId!).then(b => b && playAudio(b))}
             speakerName={activeSpeakerForClone}
         />
       )}
@@ -480,7 +506,7 @@ const App: React.FC = () => {
         <VoiceLibraryModal
             onClose={() => setIsLibraryModalOpen(false)} customVoices={customVoices}
             onUpdate={(u) => { setCustomVoices(u); localStorage.setItem('tts-customVoices', JSON.stringify(u)); }}
-            onPreview={async (v) => generateSingleLineSpeech(`Previewing voice ${v.name}.`, v.baseVoiceId!).then(b => b && playAudio(b))}
+            onPreview={async (v) => generateSingleLineSpeech(`Previewing voice ${v.name}. ${v.toneDescription || ''}`, v.baseVoiceId!).then(b => b && playAudio(b))}
         />
       )}
 
