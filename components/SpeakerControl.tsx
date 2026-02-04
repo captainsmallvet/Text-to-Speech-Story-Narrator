@@ -116,7 +116,8 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
       </div>
 
       <div className="flex flex-col gap-4 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* ส่วน Dropdown หลัก: ปรับเป็น flex-col เพื่อให้เรียงกันคนละบรรทัดตามคำขอ */}
+        <div className="flex flex-col gap-4">
           <div>
             <label htmlFor={`voice-${speakerName}`} className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
               Voice Model
@@ -145,6 +146,7 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
               )}
             </select>
           </div>
+          
           <div>
             <label htmlFor={`emotion-${speakerName}`} className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
               Emotion / Style
@@ -160,6 +162,7 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
               ))}
             </select>
           </div>
+          
           <div>
             <label htmlFor={`speed-${speakerName}`} className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
               Narrator Speed
@@ -177,7 +180,7 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
           </div>
         </div>
 
-        {/* ช่องแสดงข้อมูลอ่านอย่างเดียว (Read-only Profile Info) - ปรับเป็นคนละบรรทัด */}
+        {/* ช่องแสดงข้อมูลอ่านอย่างเดียว (Read-only Profile Info) - เรียงคนละบรรทัดตามความต้องการก่อนหน้า */}
         <div className="flex flex-col gap-3">
             <div className="flex flex-col">
                 <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
