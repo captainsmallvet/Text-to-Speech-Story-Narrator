@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { SpeakerConfig, Voice } from '../types';
 import { AVAILABLE_VOICES, EMOTIONS, SPEEDS } from '../constants';
 import { PlayIcon, LoadingSpinner, VoiceCloneIcon, StopIcon } from './icons';
@@ -27,6 +27,19 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
 }) => {
   const [isPreviewing, setIsPreviewing] = useState(false);
   const customVoices = allVoices.filter(v => v.isCustom);
+
+  // ข้อมูลของเสียงที่เลือกในปัจจุบัน
+  const selectedVoiceData = useMemo(() => {
+    return allVoices.find(v => v.id === config.voice);
+  }, [config.voice, allVoices]);
+
+  // ข้อมูลเสียงพื้นฐาน (กรณีที่เป็น Custom Voice จะไปหาเสียงต้นฉบับมาแสดง)
+  const baseVoiceData = useMemo(() => {
+    if (selectedVoiceData?.isCustom && selectedVoiceData.baseVoiceId) {
+        return AVAILABLE_VOICES.find(v => v.id === selectedVoiceData.baseVoiceId);
+    }
+    return selectedVoiceData?.isCustom ? null : selectedVoiceData;
+  }, [selectedVoiceData]);
 
   const handlePreviewClick = async () => {
     setIsPreviewing(true);
@@ -58,7 +71,7 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
 
   return (
     <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 transition-all hover:border-cyan-500">
-      <div className="flex flex-wrap justify-between items-center gap-3 mb-3">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
         <h3 className="text-lg font-semibold text-cyan-400">{speakerName}</h3>
         <div className="flex items-center gap-2 flex-wrap">
            <button
@@ -102,65 +115,104 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-        <div>
-          <label htmlFor={`voice-${speakerName}`} className="block text-xs font-medium text-gray-400 mb-1">
-            Voice Model
-          </label>
-          <select
-            id={`voice-${speakerName}`}
-            value={config.voice}
-            onChange={(e) => onConfigChange({ ...config, voice: e.target.value })}
-            className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <optgroup label="Pre-built Voices">
-                {AVAILABLE_VOICES.map((voice: Voice) => (
-                <option key={voice.id} value={voice.id}>
-                    {voice.name}
-                </option>
-                ))}
-            </optgroup>
-            {customVoices.length > 0 && (
-                <optgroup label="Custom Voices">
-                    {customVoices.map((voice: Voice) => (
-                    <option key={voice.id} value={voice.id}>
-                        {voice.name} (Custom)
-                    </option>
-                    ))}
-                </optgroup>
-            )}
-          </select>
+      <div className="flex flex-col gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor={`voice-${speakerName}`} className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
+              Voice Model
+            </label>
+            <select
+              id={`voice-${speakerName}`}
+              value={config.voice}
+              onChange={(e) => onConfigChange({ ...config, voice: e.target.value })}
+              className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <optgroup label="Pre-built Voices">
+                  {AVAILABLE_VOICES.map((voice: Voice) => (
+                  <option key={voice.id} value={voice.id}>
+                      {voice.name}
+                  </option>
+                  ))}
+              </optgroup>
+              {customVoices.length > 0 && (
+                  <optgroup label="Custom Voices">
+                      {customVoices.map((voice: Voice) => (
+                      <option key={voice.id} value={voice.id}>
+                          {voice.name} (Custom)
+                      </option>
+                      ))}
+                  </optgroup>
+              )}
+            </select>
+          </div>
+          <div>
+            <label htmlFor={`emotion-${speakerName}`} className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
+              Emotion / Style
+            </label>
+            <select
+              id={`emotion-${speakerName}`}
+              value={config.emotion}
+              onChange={(e) => onConfigChange({ ...config, emotion: e.target.value })}
+              className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {EMOTIONS.map(emotion => (
+                <option key={emotion.value} value={emotion.value}>{emotion.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor={`speed-${speakerName}`} className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
+              Narrator Speed
+            </label>
+            <select
+              id={`speed-${speakerName}`}
+              value={config.speed}
+              onChange={(e) => onConfigChange({ ...config, speed: e.target.value })}
+              className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {SPEEDS.map(speed => (
+                <option key={speed.value} value={speed.value}>{speed.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
-        <div>
-          <label htmlFor={`emotion-${speakerName}`} className="block text-xs font-medium text-gray-400 mb-1">
-            Emotion / Style
-          </label>
-          <select
-            id={`emotion-${speakerName}`}
-            value={config.emotion}
-            onChange={(e) => onConfigChange({ ...config, emotion: e.target.value })}
-            className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            {EMOTIONS.map(emotion => (
-              <option key={emotion.value} value={emotion.value}>{emotion.label}</option>
-            ))}
-          </select>
+
+        {/* ช่องแสดงข้อมูลอ่านอย่างเดียว (Read-only Profile Info) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="flex flex-col">
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                  Base Voice Profile {selectedVoiceData?.isCustom ? "(จากเสียงหลัก)" : ""}
+                </label>
+                <div className="bg-black/60 border border-gray-700/50 rounded-lg p-2 text-[11px] text-gray-400 italic leading-relaxed min-h-[50px] flex items-center">
+                    {baseVoiceData?.toneDescription || "No base profile information available."}
+                </div>
+            </div>
+
+            <div className="flex flex-col">
+                <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1 ${selectedVoiceData?.isCustom ? "text-emerald-500" : "text-gray-500"}`}>
+                  Custom Clone DNA (จากไฟล์ที่อัปโหลด)
+                </label>
+                <div className={`bg-black/60 border rounded-lg p-2 text-[11px] leading-relaxed min-h-[50px] flex items-center ${selectedVoiceData?.isCustom ? "border-emerald-900/40 text-emerald-300" : "border-gray-700/50 text-gray-500"}`}>
+                    {selectedVoiceData?.isCustom 
+                      ? (selectedVoiceData.toneDescription || "No DNA information captured.") 
+                      : "Not a custom cloned voice."}
+                </div>
+            </div>
         </div>
-        <div>
-          <label htmlFor={`speed-${speakerName}`} className="block text-xs font-medium text-gray-400 mb-1">
-            Narrator Speed
+      </div>
+
+      <div className="mb-4">
+          <label htmlFor={`tone-${speakerName}`} className="block text-xs font-medium text-gray-300 mb-1 flex items-center gap-2">
+            <span>Voice Tone / Aesthetic (แนะนำ: ระบุเพื่อความนุ่มนวล ลดเสียงแตก/แหลม)</span>
           </label>
-          <select
-            id={`speed-${speakerName}`}
-            value={config.speed}
-            onChange={(e) => onConfigChange({ ...config, speed: e.target.value })}
-            className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            {SPEEDS.map(speed => (
-              <option key={speed.value} value={speed.value}>{speed.label}</option>
-            ))}
-          </select>
-        </div>
+          <textarea
+            id={`tone-${speakerName}`}
+            rows={2}
+            value={config.toneDescription || ''}
+            onChange={(e) => onConfigChange({ ...config, toneDescription: e.target.value })}
+            placeholder="เช่น: Professional, mellow broadcast style. Smooth, warm..."
+            className="w-full bg-gray-900/40 border border-gray-700 rounded-md p-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 resize-none"
+          />
       </div>
 
       <div className="mb-4">
@@ -191,21 +243,6 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
                 </div>
             ))}
           </div>
-      </div>
-        
-      {/* Updated Tone Description Field to Textarea for better visibility */}
-      <div className="mb-4">
-          <label htmlFor={`tone-${speakerName}`} className="block text-xs font-medium text-emerald-400 mb-1">
-            Voice Tone / Aesthetic (แนะนำ: ระบุเพื่อความนุ่มนวล ลดเสียงแตก/แหลม)
-          </label>
-          <textarea
-            id={`tone-${speakerName}`}
-            rows={3}
-            value={config.toneDescription || ''}
-            onChange={(e) => onConfigChange({ ...config, toneDescription: e.target.value })}
-            placeholder="e.g. Professional, mellow broadcast style. Smooth, warm..."
-            className="w-full bg-black/40 border border-gray-700 rounded-md p-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
-          />
       </div>
 
       <div>

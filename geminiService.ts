@@ -4,9 +4,9 @@ import type { DialogueLine, SpeakerConfig } from './types';
 import { decode, createWavBlob } from './utils/audio';
 import { DEFAULT_TONE } from './constants';
 
+// Fix: Use process.env.API_KEY exclusively for initialization as per guidelines
 const getAi = () => {
-  // Use the pre-configured API key from environment
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
 };
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));

@@ -11,35 +11,13 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS, DEFAULT_TONE } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.9.12 (Updated Defaults)";
-const LAST_UPDATED = "Nov 21, 2025 01:00";
+const APP_VERSION = "v1.9.25 (Stability Fix)";
+const LAST_UPDATED = "Nov 21, 2025 04:00";
 
-// อัปเดตค่าเริ่มต้นตามคำขอผู้ใช้: 949222, 949225, 949226, 949222, 949225
 const INITIAL_DEFAULT_SEEDS = [949222, 949225, 949226, 949222, 949225];
 
 const App: React.FC = () => {
-  // --- ระบบจัดการ API Key สำหรับใช้งานส่วนตัว ---
-    const [inputKey, setInputKey] = useState<string>('');
-
-      useEffect(() => {
-          const savedKey = localStorage.getItem('gemini_api_key');
-              if (savedKey) {
-                    setInputKey(savedKey);
-                          (window as any).process = { env: { API_KEY: savedKey } };
-                              } else {
-                                    setInputKey('no API key');
-                                        }
-                                          }, []);
-
-                                            const handleSendKey = () => {
-                                                if (inputKey && inputKey !== 'no API key') {
-                                                      localStorage.setItem('gemini_api_key', inputKey);
-                                                            alert("บันทึก API Key เรียบร้อยแล้วครับ");
-                                                                  window.location.reload(); 
-                                                                      }
-                                                                        };
   const isAbortingRef = useRef(false);
-
   const [scriptText, setScriptText] = useState<string>('');
   const [dialogueLines, setDialogueLines] = useState<DialogueLine[]>([]);
   const [speakerConfigs, setSpeakerConfigs] = useState<Map<string, SpeakerConfig>>(new Map());
@@ -73,21 +51,11 @@ const App: React.FC = () => {
 
   const handleSpeakerConfigChange = useCallback((speaker: string, newConfig: SpeakerConfig) => {
     setSpeakerConfigs(prevConfigs => {
-      const currentConfig = prevConfigs.get(speaker);
-      const newConfigs = new Map(prevConfigs);
-      
-      // Auto-update tone description if voice changed to a custom one
-      if (currentConfig && currentConfig.voice !== newConfig.voice) {
-          const customVoice = customVoices.find(v => v.id === newConfig.voice);
-          if (customVoice && customVoice.toneDescription) {
-              newConfig.toneDescription = customVoice.toneDescription;
-          }
-      }
-      
-      newConfigs.set(speaker, newConfig);
-      return newConfigs;
+      const nextConfigs = new Map(prevConfigs);
+      nextConfigs.set(speaker, newConfig);
+      return nextConfigs;
     });
-  }, [customVoices]);
+  }, []);
 
   const handlePlayFullStory = useCallback(async () => {
     if (!generatedStoryAudio) return;
@@ -122,23 +90,25 @@ const App: React.FC = () => {
 
     if (savedCustomVoices) {
         try {
-            const parsedData = JSON.parse(savedCustomVoices) as any;
+            const parsedData = JSON.parse(savedCustomVoices);
             if (Array.isArray(parsedData)) {
                 const migratedVoices: Voice[] = parsedData.filter((v: any) => v && v.id).map((v: any) => ({
-                    id: v.id, name: v.name, isCustom: true, baseVoiceId: v.baseVoiceId || AVAILABLE_VOICES[0].id,
+                    id: v.id, 
+                    name: v.name, 
+                    isCustom: true, 
+                    baseVoiceId: v.baseVoiceId || AVAILABLE_VOICES[0].id,
                     toneDescription: v.toneDescription || ''
                 }));
                 setCustomVoices(migratedVoices);
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Error loading custom voices:", e); }
     }
 
     if (savedConfigs) {
       try {
-        const parsedConfigs: [string, any][] = JSON.parse(savedConfigs) as any;
+        const parsedConfigs: [string, any][] = JSON.parse(savedConfigs);
         if (Array.isArray(parsedConfigs)) {
           const migratedConfigs = new Map<string, SpeakerConfig>(parsedConfigs.map(([speaker, config]) => {
-              // Migration for seeds array
               let seeds = config.seeds;
               if (!seeds || !Array.isArray(seeds)) {
                   seeds = createDefaultSeeds(config.seed);
@@ -146,17 +116,16 @@ const App: React.FC = () => {
               return [speaker, {
                   voice: config.voice || AVAILABLE_VOICES[0].id,
                   promptPrefix: config.promptPrefix || '',
-                  // Updated migration defaults to 'none' and 'normal'
                   emotion: config.emotion || 'none',
                   volume: config.volume || 1,
                   speed: config.speed || 'normal', 
                   seeds: seeds,
-                  toneDescription: config.toneDescription || DEFAULT_TONE,
+                  toneDescription: config.toneDescription || '',
               }];
           }));
           setSpeakerConfigs(migratedConfigs);
         }
-      } catch (e) { console.error(e); }
+      } catch (e) { console.error("Error loading speaker configs:", e); }
     }
   }, []);
 
@@ -185,15 +154,15 @@ const App: React.FC = () => {
         if (prevConfigs.has(speaker)) {
             newConfigs.set(speaker, prevConfigs.get(speaker)!);
         } else {
+          const defaultVoice = AVAILABLE_VOICES[voiceIndex % AVAILABLE_VOICES.length];
           newConfigs.set(speaker, {
-            voice: AVAILABLE_VOICES[voiceIndex % AVAILABLE_VOICES.length].id,
+            voice: defaultVoice.id,
             promptPrefix: '', 
-            // Updated default values: Emotion = 'none', Speed = 'normal'
             emotion: 'none', 
             volume: 1, 
             speed: 'normal', 
             seeds: createDefaultSeeds(voiceIndex === 0 ? undefined : (INITIAL_DEFAULT_SEEDS[0] + (voiceIndex * 10))),
-            toneDescription: DEFAULT_TONE,
+            toneDescription: '',
           });
         }
         voiceIndex++;
@@ -243,10 +212,14 @@ const App: React.FC = () => {
       const voiceInfo = allVoices.find(v => v.id === config.voice);
       const voiceToUse = (voiceInfo?.isCustom && voiceInfo.baseVoiceId) ? voiceInfo.baseVoiceId : (voiceInfo?.id || AVAILABLE_VOICES[0].id);
       
+      const combinedTone = `${voiceInfo?.toneDescription || ''} ${config.toneDescription || ''}`.trim();
+
+      // Fix: Ensure config is correctly spread after narrowing to avoid "Spread types may only be created from object types" error
       const effectiveConfigs = new Map([[speaker, { 
-        ...config, 
+        ...(config as SpeakerConfig), 
         voice: voiceToUse, 
-        promptPrefix: constructFullPrefix(config) 
+        promptPrefix: constructFullPrefix(config),
+        toneDescription: combinedTone
       }]]);
 
       const audioBlob = await generateMultiLineSpeech(
@@ -284,7 +257,16 @@ const App: React.FC = () => {
             if (!config) continue;
             const voiceInfo = allVoices.find(v => v.id === config.voice);
             const voiceToUse = (voiceInfo?.isCustom && voiceInfo.baseVoiceId) ? voiceInfo.baseVoiceId : (voiceInfo?.id || AVAILABLE_VOICES[0].id);
-            effectiveSpeakerConfigs.set(line.speaker, { ...config, voice: voiceToUse, promptPrefix: constructFullPrefix(config) });
+            
+            const combinedTone = `${voiceInfo?.toneDescription || ''} ${config.toneDescription || ''}`.trim();
+
+            // Fix: Ensure config is correctly spread after narrowing to avoid potential "Spread types" error
+            effectiveSpeakerConfigs.set(line.speaker, { 
+              ...(config as SpeakerConfig), 
+              voice: voiceToUse, 
+              promptPrefix: constructFullPrefix(config),
+              toneDescription: combinedTone
+            });
         }
     }
 
@@ -363,27 +345,6 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-950 text-white p-4 lg:p-8 font-sans">
       <div className="max-w-7xl mx-auto">
-      {/* API Key Management Bar */}
-              <div className="mb-6 p-4 bg-gray-900 border border-emerald-500/30 rounded-xl">
-                        <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-emerald-400 uppercase text-left">
-                                                  API Key Control Panel :
-                                                              </label>
-                                                                          <div className="flex flex-wrap sm:flex-nowrap gap-2">
-                                                                                        <input
-                                                                                                        type="text"
-                                                                                                                        value={inputKey}
-                                                                                                                                        onChange={(e) => setInputKey(e.target.value)}
-                                                                                                                                                        className="w-full flex-1 bg-black border border-gray-700 rounded px-3 py-2 text-sm font-mono text-emerald-300 outline-none"
-                                                                                                                                                                      />
-                                                                                                                                                                                    <div className="flex gap-2 w-full sm:w-auto">
-                                                                                                                                                                                                    <button onClick={handleSendKey} className="flex-1 bg-emerald-600 px-4 py-2 rounded text-xs font-bold hover:bg-emerald-700 transition-colors">SEND</button>
-                                                                                                                                                                                                                    <button onClick={() => { navigator.clipboard.writeText(inputKey); alert("Copy แล้วครับ"); }} className="flex-1 bg-blue-600 px-4 py-2 rounded text-xs font-bold">COPY</button>
-                                                                                                                                                                                                                                    <button onClick={() => { localStorage.removeItem('gemini_api_key'); setInputKey(''); alert("ลบ Key แล้วครับ"); }} className="flex-1 bg-red-600 px-4 py-2 rounded text-xs font-bold">CLEAR</button>
-                                                                                                                                                                                                                                                  </div>
-                                                                                                                                                                                                                                                              </div>
-                                                                                                                                                                                                                                                                        </div>
-                                                                                                                                                                                                                                                                                </div>
         <header className="text-center mb-10">
           <h1 className="text-4xl lg:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-600">
             Text-to-Speech Story Narrator
@@ -411,8 +372,12 @@ const App: React.FC = () => {
             speakerConfigs={speakerConfigs} onSpeakerConfigChange={handleSpeakerConfigChange}
             onPreviewLine={(l) => {
                 const config = speakerConfigs.get(l.speaker);
-                const seedToUse = config ? config.seeds[0] : INITIAL_DEFAULT_SEEDS[0];
-                return generateSingleLineSpeech(`${constructFullPrefix(speakerConfigs.get(l.speaker)!)} ${l.text}`, speakerConfigs.get(l.speaker)?.voice || 'Kore', seedToUse, speakerConfigs.get(l.speaker)?.toneDescription).then(b => b && playAudio(b));
+                if (!config) return Promise.resolve();
+                const seedToUse = config.seeds[0];
+                const prefix = constructFullPrefix(config);
+                const voiceInfo = allVoices.find(v => v.id === config.voice);
+                const combinedTone = `${voiceInfo?.toneDescription || ''} ${config.toneDescription || ''}`.trim();
+                return generateSingleLineSpeech(`${prefix} ${l.text}`, config.voice, seedToUse, combinedTone).then(b => b && playAudio(b));
             }}
             onPreviewSpeaker={handlePreviewSpeaker}
             dialogueLines={dialogueLines} onGenerateFullStory={handleGenerateFullStory} isGenerating={isGenerating}
@@ -484,18 +449,24 @@ const App: React.FC = () => {
         <VoiceCloneModal 
             onClose={() => setIsCloneModalOpen(false)}
             onSave={(nv) => { 
-                const updated = [...customVoices, nv]; 
-                setCustomVoices(updated); 
-                localStorage.setItem('tts-customVoices', JSON.stringify(updated)); 
+                const updatedCustomVoices = [...customVoices, nv]; 
+                setCustomVoices(updatedCustomVoices); 
+                localStorage.setItem('tts-customVoices', JSON.stringify(updatedCustomVoices)); 
+                
                 if (activeSpeakerForClone) {
-                    const currentConfig = speakerConfigs.get(activeSpeakerForClone);
-                    if (currentConfig) {
-                        handleSpeakerConfigChange(activeSpeakerForClone, { 
-                            ...currentConfig, 
-                            voice: nv.id,
-                            toneDescription: nv.toneDescription || currentConfig.toneDescription
-                        });
-                    }
+                    setSpeakerConfigs(prev => {
+                        const next = new Map(prev);
+                        const current = next.get(activeSpeakerForClone);
+                        // Fix: Explicitly narrowing current to avoid "Spread types may only be created from object types"
+                        if (current) {
+                            next.set(activeSpeakerForClone, {
+                                ...(current as SpeakerConfig),
+                                voice: nv.id,
+                                toneDescription: '' // Reset override field when changing voice
+                            });
+                        }
+                        return next;
+                    });
                 }
                 setIsCloneModalOpen(false); 
             }}

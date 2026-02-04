@@ -2,15 +2,38 @@
 import type { Voice, TextModel } from './types';
 
 export const AVAILABLE_VOICES: Voice[] = [
-  { name: 'Kore (Female)', id: 'Kore' },
-  { name: 'Puck (Male)', id: 'Puck' },
-  { name: 'Charon (Male, Deep)', id: 'Charon' },
-  { name: 'Fenrir (Male, Raspy)', id: 'Fenrir' },
-  { name: 'Zephyr (Female, Soft)', id: 'Zephyr' },
-  { name: 'Enceladus (Male)', id: 'Enceladus' },
+  { 
+    name: 'Kore (Female)', 
+    id: 'Kore',
+    toneDescription: 'เสียงผู้หญิงโทนกลาง มีความชัดเจน สุภาพ และมีความเป็นธรรมชาติสูง เหมาะสำหรับการบรรยายทั่วไป'
+  },
+  { 
+    name: 'Puck (Male)', 
+    id: 'Puck',
+    toneDescription: 'เสียงผู้ชายโทนสว่าง มีพลัง และดูมีความกระตือรือร้น เหมาะสำหรับบทสนทนาที่ต้องการความสดใส'
+  },
+  { 
+    name: 'Charon (Male, Deep)', 
+    id: 'Charon',
+    toneDescription: 'เสียงผู้ชายโทนต่ำ มีความทุ้มลึก น่าเชื่อถือ และดูมีอำนาจ เหมาะสำหรับบทบรรยายที่ต้องการความหนักแน่น'
+  },
+  { 
+    name: 'Fenrir (Male, Raspy)', 
+    id: 'Fenrir',
+    toneDescription: 'เสียงผู้ชายที่มีความแหบพร่าเล็กน้อย มีเอกลักษณ์เฉพาะตัวสูง ดูเป็นผู้ใหญ่ที่มีประสบการณ์'
+  },
+  { 
+    name: 'Zephyr (Female, Soft)', 
+    id: 'Zephyr',
+    toneDescription: 'เสียงผู้หญิงโทนนุ่มนวล แผ่วเบา และดูอบอุ่น เหมาะสำหรับบทสวดมนต์หรือการทำสมาธิ'
+  },
+  { 
+    name: 'Enceladus (Male)', 
+    id: 'Enceladus',
+    toneDescription: 'เสียงผู้ชายโทนอบอุ่น กลมกล่อม ฟังง่าย และมีความเป็นมิตรสูง'
+  },
 ];
 
-// Set to empty string so users can fill it manually
 export const DEFAULT_TONE = "";
 
 export const TEXT_MODELS: TextModel[] = [
@@ -22,13 +45,10 @@ export const TEXT_MODELS: TextModel[] = [
 
 export const EMOTIONS = [
   { value: 'none', label: 'Default / None' },
-  // General Emotions
   { value: 'happily', label: 'Happy' },
   { value: 'cheerfully', label: 'Cheerful' },
   { value: 'calmly', label: 'Calm' },
   { value: 'seriously', label: 'Serious' },
-  
-  // Special Dhamma/Spiritual Narration Styles
   { value: 'with a serene, wise tone, articulating every word clearly and peacefully', label: 'Dhamma: Serene & Wise' },
   { value: 'with deep kindness and warmth, speaking gently but engagingly', label: 'Dhamma: Compassionate' },
   { value: 'slowly and mindfully, with a steady, relaxed pace that is very easy to follow', label: 'Dhamma: Mindful & Steady' },
