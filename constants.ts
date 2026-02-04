@@ -5,32 +5,32 @@ export const AVAILABLE_VOICES: Voice[] = [
   { 
     name: 'Kore (Female)', 
     id: 'Kore',
-    toneDescription: 'เสียงผู้หญิงโทนกลาง มีความชัดเจน สุภาพ และมีความเป็นธรรมชาติสูง เหมาะสำหรับการบรรยายทั่วไป'
+    toneDescription: 'Natural, clear, and polite female voice with a neutral tone. High fidelity and versatile for general narration.'
   },
   { 
     name: 'Puck (Male)', 
     id: 'Puck',
-    toneDescription: 'เสียงผู้ชายโทนสว่าง มีพลัง และดูมีความกระตือรือร้น เหมาะสำหรับบทสนทนาที่ต้องการความสดใส'
+    toneDescription: 'Bright, energetic male voice with high vitality. Excellent for lively dialogues and enthusiastic storytelling.'
   },
   { 
     name: 'Charon (Male, Deep)', 
     id: 'Charon',
-    toneDescription: 'เสียงผู้ชายโทนต่ำ มีความทุ้มลึก น่าเชื่อถือ และดูมีอำนาจ เหมาะสำหรับบทบรรยายที่ต้องการความหนักแน่น'
+    toneDescription: 'Deep, resonant, and authoritative male voice. Provides a sense of weight and reliability, perfect for serious narrations.'
   },
   { 
     name: 'Fenrir (Male, Raspy)', 
     id: 'Fenrir',
-    toneDescription: 'เสียงผู้ชายที่มีความแหบพร่าเล็กน้อย มีเอกลักษณ์เฉพาะตัวสูง ดูเป็นผู้ใหญ่ที่มีประสบการณ์'
+    toneDescription: 'Mature male voice with a slight rasp and unique character. Sounds experienced and sophisticated.'
   },
   { 
     name: 'Zephyr (Female, Soft)', 
     id: 'Zephyr',
-    toneDescription: 'เสียงผู้หญิงโทนนุ่มนวล แผ่วเบา และดูอบอุ่น เหมาะสำหรับบทสวดมนต์หรือการทำสมาธิ'
+    toneDescription: 'Soft, gentle, and airy female voice. Ideal for calming content, mindfulness, or spiritual narrations.'
   },
   { 
     name: 'Enceladus (Male)', 
     id: 'Enceladus',
-    toneDescription: 'เสียงผู้ชายโทนอบอุ่น กลมกล่อม ฟังง่าย และมีความเป็นมิตรสูง'
+    toneDescription: 'Warm, friendly, and smooth male voice. Very approachable and pleasant for long-form listening.'
   },
 ];
 

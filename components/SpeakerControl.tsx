@@ -177,25 +177,25 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
           </div>
         </div>
 
-        {/* ช่องแสดงข้อมูลอ่านอย่างเดียว (Read-only Profile Info) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* ช่องแสดงข้อมูลอ่านอย่างเดียว (Read-only Profile Info) - ปรับเป็นคนละบรรทัด */}
+        <div className="flex flex-col gap-3">
             <div className="flex flex-col">
                 <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-                  Base Voice Profile {selectedVoiceData?.isCustom ? "(จากเสียงหลัก)" : ""}
+                  Base Voice Profile {selectedVoiceData?.isCustom ? "(Original character from standard library)" : ""}
                 </label>
-                <div className="bg-black/60 border border-gray-700/50 rounded-lg p-2 text-[11px] text-gray-400 italic leading-relaxed min-h-[50px] flex items-center">
+                <div className="bg-black/60 border border-gray-700/50 rounded-lg p-3 text-[11px] text-gray-400 italic leading-relaxed min-h-[44px] flex items-center">
                     {baseVoiceData?.toneDescription || "No base profile information available."}
                 </div>
             </div>
 
             <div className="flex flex-col">
                 <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1 ${selectedVoiceData?.isCustom ? "text-emerald-500" : "text-gray-500"}`}>
-                  Custom Clone DNA (จากไฟล์ที่อัปโหลด)
+                  Custom Clone DNA (Extracted character from uploaded sample)
                 </label>
-                <div className={`bg-black/60 border rounded-lg p-2 text-[11px] leading-relaxed min-h-[50px] flex items-center ${selectedVoiceData?.isCustom ? "border-emerald-900/40 text-emerald-300" : "border-gray-700/50 text-gray-500"}`}>
+                <div className={`bg-black/60 border rounded-lg p-3 text-[11px] leading-relaxed min-h-[44px] flex items-center ${selectedVoiceData?.isCustom ? "border-emerald-900/40 text-emerald-300" : "border-gray-700/50 text-gray-500"}`}>
                     {selectedVoiceData?.isCustom 
-                      ? (selectedVoiceData.toneDescription || "No DNA information captured.") 
-                      : "Not a custom cloned voice."}
+                      ? (selectedVoiceData.toneDescription || "No DNA information captured during analysis.") 
+                      : "Not a custom cloned voice. Original standard model in use."}
                 </div>
             </div>
         </div>
@@ -210,7 +210,7 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
             rows={2}
             value={config.toneDescription || ''}
             onChange={(e) => onConfigChange({ ...config, toneDescription: e.target.value })}
-            placeholder="เช่น: Professional, mellow broadcast style. Smooth, warm..."
+            placeholder="e.g., Professional, mellow broadcast style. Smooth, warm, no harsh frequencies..."
             className="w-full bg-gray-900/40 border border-gray-700 rounded-md p-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 resize-none"
           />
       </div>
