@@ -2,39 +2,15 @@
 import type { Voice, TextModel } from './types';
 
 export const AVAILABLE_VOICES: Voice[] = [
-  { 
-    name: 'Kore (Female)', 
-    id: 'Kore', 
-    toneDescription: 'Professional, clear, and balanced female voice with a warm and approachable tone, ideal for standard narration.' 
-  },
-  { 
-    name: 'Puck (Male)', 
-    id: 'Puck', 
-    toneDescription: 'Lively, energetic, and youthful male voice with a bright and engaging cadence, perfect for dynamic storytelling.' 
-  },
-  { 
-    name: 'Charon (Male, Deep)', 
-    id: 'Charon', 
-    toneDescription: 'Deep, resonant, and authoritative male voice with a slow, deliberate pace and a calm, commanding presence.' 
-  },
-  { 
-    name: 'Fenrir (Male, Raspy)', 
-    id: 'Fenrir', 
-    toneDescription: 'Mature, slightly raspy, and textured male voice with a wise and steady delivery, suitable for elderly characters.' 
-  },
-  { 
-    name: 'Zephyr (Female, Soft)', 
-    id: 'Zephyr', 
-    toneDescription: 'Soft, gentle, and airy female voice with a peaceful and comforting tone, ideal for meditation or serene stories.' 
-  },
-  { 
-    name: 'Enceladus (Male)', 
-    id: 'Enceladus', 
-    toneDescription: 'Steady, neutral, and clear male voice with a consistent rhythmic timing and professional broadcast quality.' 
-  },
+  { name: 'Kore (Female)', id: 'Kore' },
+  { name: 'Puck (Male)', id: 'Puck' },
+  { name: 'Charon (Male, Deep)', id: 'Charon' },
+  { name: 'Fenrir (Male, Raspy)', id: 'Fenrir' },
+  { name: 'Zephyr (Female, Soft)', id: 'Zephyr' },
+  { name: 'Enceladus (Male)', id: 'Enceladus' },
 ];
 
-// Set to empty string so users can fill it manually if they want, but default descriptions now come from the voices themselves.
+// Set to empty string so users can fill it manually
 export const DEFAULT_TONE = "";
 
 export const TEXT_MODELS: TextModel[] = [

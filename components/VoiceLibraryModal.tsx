@@ -85,8 +85,9 @@ const VoiceLibraryModal: React.FC<VoiceLibraryModalProps> = ({ onClose, customVo
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Reset the input value immediately so the same file can be selected again if needed
     event.target.value = '';
-    setImportStatus({ type: 'success', message: "Processing file..." });
+    setImportStatus({ type: 'success', message: "Processing file..." }); // Show temporary loading state
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -112,21 +113,26 @@ const VoiceLibraryModal: React.FC<VoiceLibraryModalProps> = ({ onClose, customVo
                 let duplicateCount = 0;
                 let invalidCount = 0;
 
+                // Fallback base voice if missing in backup
                 const defaultBaseVoice = AVAILABLE_VOICES[0].id;
 
                 importedData.forEach((item: any) => {
+                    // 1. Basic validation
                     if (!item || typeof item !== 'object' || !item.name) {
                         invalidCount++;
                         return;
                     }
 
+                    // 2. ID normalization
                     const id = item.id ? String(item.id) : `custom-import-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+                    // 3. Duplicate check
                     if (existingIds.has(id)) {
                         duplicateCount++;
                         return;
                     }
 
+                    // 4. Base Voice Validation
                     let baseVoiceId = item.baseVoiceId;
                     if (typeof baseVoiceId !== 'string' || !validPrebuiltIds.has(baseVoiceId)) {
                          baseVoiceId = defaultBaseVoice;
@@ -136,8 +142,7 @@ const VoiceLibraryModal: React.FC<VoiceLibraryModalProps> = ({ onClose, customVo
                         id: id,
                         name: String(item.name),
                         isCustom: true,
-                        baseVoiceId: baseVoiceId,
-                        toneDescription: item.toneDescription || '' // เพิ่มการดึงค่า toneDescription มาใช้งาน
+                        baseVoiceId: baseVoiceId
                     });
                 });
 
@@ -150,6 +155,7 @@ const VoiceLibraryModal: React.FC<VoiceLibraryModalProps> = ({ onClose, customVo
                     return;
                 }
 
+                // Auto-merge
                 const mergedVoices = [...customVoices, ...validNewVoices];
                 onUpdate(mergedVoices);
                 setImportStatus({ 
@@ -194,12 +200,7 @@ const VoiceLibraryModal: React.FC<VoiceLibraryModalProps> = ({ onClose, customVo
                   placeholder="Enter new name"
                 />
               ) : (
-                <div className="flex flex-col flex-grow truncate mr-2">
-                  <span className="text-white font-medium pl-1 truncate">{voice.name}</span>
-                  {voice.toneDescription && (
-                    <span className="text-[10px] text-gray-400 pl-1 italic truncate">DNA: {voice.toneDescription.substring(0, 40)}...</span>
-                  )}
-                </div>
+                <span className="text-white font-medium pl-1 truncate">{voice.name}</span>
               )}
 
               <div className="flex items-center gap-1">
