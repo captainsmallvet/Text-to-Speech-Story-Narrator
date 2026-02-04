@@ -3,24 +3,29 @@ import type { Voice, TextModel } from './types';
 
 export const AVAILABLE_VOICES: Voice[] = [
   { 
-    name: 'Kore (Female)', 
-    id: 'Kore',
-    toneDescription: 'Natural, clear, and polite female voice with a neutral tone. High fidelity and versatile for general narration.'
+    name: 'Mimas (Male, Meditative)', 
+    id: 'Mimas',
+    toneDescription: 'Extremely calm, deep, and steady male voice. Perfect for meditation, Dhamma contemplation, and slow-paced wisdom sharing with zero harshness.'
   },
   { 
-    name: 'Puck (Male)', 
-    id: 'Puck',
-    toneDescription: 'Bright, energetic male voice with high vitality. Excellent for lively dialogues and enthusiastic storytelling.'
+    name: 'Iapetus (Male, Warm Wisdom)', 
+    id: 'Iapetus',
+    toneDescription: 'A melodic and mature male voice with natural warmth. Excellent for storytelling with a peaceful soul and compassionate guidance.'
   },
   { 
     name: 'Charon (Male, Deep)', 
     id: 'Charon',
-    toneDescription: 'Deep, resonant, and authoritative male voice. Provides a sense of weight and reliability, perfect for serious narrations.'
+    toneDescription: 'Deep, resonant, and authoritative male voice. Provides a sense of weight and reliability, perfect for serious and profound narrations.'
   },
   { 
-    name: 'Fenrir (Male, Raspy)', 
-    id: 'Fenrir',
-    toneDescription: 'Mature male voice with a slight rasp and unique character. Sounds experienced and sophisticated.'
+    name: 'Enceladus (Male, Smooth)', 
+    id: 'Enceladus',
+    toneDescription: 'Warm, friendly, and smooth male voice. Very approachable and pleasant for long-form listening and gentle teaching.'
+  },
+  { 
+    name: 'Kore (Female)', 
+    id: 'Kore',
+    toneDescription: 'Natural, clear, and polite female voice with a neutral tone. High fidelity and versatile for general narration.'
   },
   { 
     name: 'Zephyr (Female, Soft)', 
@@ -28,9 +33,14 @@ export const AVAILABLE_VOICES: Voice[] = [
     toneDescription: 'Soft, gentle, and airy female voice. Ideal for calming content, mindfulness, or spiritual narrations.'
   },
   { 
-    name: 'Enceladus (Male)', 
-    id: 'Enceladus',
-    toneDescription: 'Warm, friendly, and smooth male voice. Very approachable and pleasant for long-form listening.'
+    name: 'Puck (Male)', 
+    id: 'Puck',
+    toneDescription: 'Bright, energetic male voice with high vitality. Excellent for lively dialogues and enthusiastic storytelling.'
+  },
+  { 
+    name: 'Fenrir (Male, Raspy)', 
+    id: 'Fenrir',
+    toneDescription: 'Mature male voice with a slight rasp and unique character. Sounds experienced and sophisticated.'
   },
 ];
 
@@ -49,15 +59,15 @@ export const EMOTIONS = [
   { value: 'cheerfully', label: 'Cheerful' },
   { value: 'calmly', label: 'Calm' },
   { value: 'seriously', label: 'Serious' },
-  { value: 'with a serene, wise tone, articulating every word clearly and peacefully', label: 'Dhamma: Serene & Wise' },
-  { value: 'with deep kindness and warmth, speaking gently but engagingly', label: 'Dhamma: Compassionate' },
-  { value: 'slowly and mindfully, with a steady, relaxed pace that is very easy to follow', label: 'Dhamma: Mindful & Steady' },
-  { value: 'with a light, peaceful energy and gentle clarity to keep the listener engaged', label: 'Dhamma: Gentle Insight' },
-  { value: 'patiently and soothingly, like a wise teacher explaining complex truths simply', label: 'Dhamma: Patient Teacher' },
+  { value: 'with a very serene, wise tone, reflecting on deep truths with peaceful pauses', label: 'Dhamma: Deep Reflection' },
+  { value: 'with profound kindness and compassionate energy, speaking slowly and gently', label: 'Dhamma: Compassionate Guidance' },
+  { value: 'in a steady, meditative flow, maintaining perfect equanimity in every word', label: 'Dhamma: Meditative Flow' },
+  { value: 'with a soft, airy whisper-like quality to induce deep relaxation and focus', label: 'Dhamma: Peaceful Stillness' },
+  { value: 'articulating every syllable clearly and mindfully, like a teacher explaining the path', label: 'Dhamma: Mindful Clarity' },
 ];
 
 export const SPEEDS = [
-  { value: 'slow', label: 'Slow', adverb: 'slowly' },
+  { value: 'slow', label: 'Slow (Best for Dhamma)', adverb: 'slowly' },
   { value: 'slightly_slow', label: 'Comfortable', adverb: 'at a comfortable, relaxed pace' },
   { value: 'normal', label: 'Normal', adverb: '' },
   { value: 'slightly_fast', label: 'Slightly Fast', adverb: 'somewhat quickly' },
