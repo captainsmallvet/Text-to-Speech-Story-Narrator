@@ -10,7 +10,7 @@ export const AVAILABLE_VOICES: Voice[] = [
   { 
     name: 'Charon (Male, Deep)', 
     id: 'Charon',
-    toneDescription: 'Deep, resonant, and authoritative male voice. Provides a sense of weight and reliability, perfect for serious and profound narrations.'
+    toneDescription: 'Deep male voice.'
   },
   { 
     name: 'Enceladus (Male, Smooth)', 
