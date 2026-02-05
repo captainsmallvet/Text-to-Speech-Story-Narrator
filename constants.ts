@@ -10,7 +10,7 @@ export const AVAILABLE_VOICES: Voice[] = [
   { 
     name: 'Charon (Male, Deep)', 
     id: 'Charon',
-    toneDescription: 'Deep male voice.'
+    toneDescription: 'male'
   },
   { 
     name: 'Enceladus (Male, Smooth)', 
