@@ -73,8 +73,43 @@ export const SPEEDS = [
   { value: 'slightly_fast', label: 'Slightly Fast', adverb: 'somewhat quickly' },
 ];
 
-export const EXAMPLE_SCRIPT = `Narrator: Welcome to this session on the path to inner peace.
-Speaker 1: Today, we will explore the concept of Mindfulness, or Sati.
-Speaker 2: Is mindfulness just about sitting still?
-Speaker 1: Not at all. It is about being fully present in every moment, with a heart full of kindness.
-Narrator: Take a deep breath, relax your shoulders, and let the wisdom of the Dhamma wash over you.`;
+export const EXAMPLE_SCRIPT = `Struggling with a chaotic mind??? This isn't just ancient wisdom; it's the Buddha's precise, step-by-step path to ending suffering and finding unshakeable inner peace, starting today.
+Hello and welcome.
+Today we're diving into the Buddhist path to inner peace.
+But I want you to think of this less as a religion
+and more like a practical training manual for your own mind.
+It's a step-by-step guide for cultivating a real lasting sense of well-being.
+So let's get started.
+You know,
+it's a question I think a lot of us ask ourselves.
+In a world that just feels so chaotic sometimes.
+How do we actually find a stable center?
+Well, this ancient path scribed in the Tripitaka or the Pali Canon
+offers a surprisingly clear step-by-step approach.
+And it all begins by looking directly at a fundamental truth of our experience.
+This quote really gets to the heart of it.
+The whole path starts with one core observation.
+Life involves suffering.
+And look,
+we're not just talking about big, major tragedies.
+It's also that subtle background noise of dissatisfaction,
+the stress that comes from just wanting things to be different than they are.
+The moment we can acknowledge this reality,
+we can actually start to do something about it.
+So, where do we even begin?
+You might think it starts with some complex meditation, right?
+But nope,
+it's actually something way more fundamental.
+Before we can even begin to train the mind,
+we need to build a stable, solid foundation for it to rest on.
+And that starts with giving and morality.
+The very first step is Dana, which means generosity.
+Dana or giving is considered the easiest way to condition the mind.
+It requires little time and effort,
+resulting in a refined, clear, and light mind,
+achieving a certain level of ease.
+True giving is giving with sincere goodwill to the recipient,
+without expecting anything in return,
+either directly or indirectly,
+from the recipient or from others.
+The purer the giving, the greater the results.`;
