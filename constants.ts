@@ -3,11 +3,6 @@ import type { Voice, TextModel } from './types';
 
 export const AVAILABLE_VOICES: Voice[] = [
   { 
-    name: 'Mimas (Male, Meditative)', 
-    id: 'Mimas',
-    toneDescription: 'Extremely calm, deep, and steady male voice. Perfect for meditation, Dhamma contemplation, and slow-paced wisdom sharing with zero harshness.'
-  },
-  { 
     name: 'Iapetus (Male, Warm Wisdom)', 
     id: 'Iapetus',
     toneDescription: 'A melodic and mature male voice with natural warmth. Excellent for storytelling with a peaceful soul and compassionate guidance.'
