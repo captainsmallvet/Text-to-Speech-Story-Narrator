@@ -60,6 +60,7 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
 
   const randomizeAllSeeds = () => {
     const newSeeds = Array.from({ length: 5 }, () => Math.floor(Math.random() * 1000000));
+    newSeeds[0] = Math.floor(Math.random() * 1000000);
     onConfigChange({ ...config, seeds: newSeeds });
   };
 
@@ -116,7 +117,6 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
       </div>
 
       <div className="flex flex-col gap-4 mb-4">
-        {/* ส่วน Dropdown หลัก: ปรับเป็น flex-col เพื่อให้เรียงกันคนละบรรทัดตามคำขอ */}
         <div className="flex flex-col gap-4">
           <div>
             <label htmlFor={`voice-${speakerName}`} className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
@@ -180,25 +180,25 @@ const SpeakerControl: React.FC<SpeakerControlProps> = ({
           </div>
         </div>
 
-        {/* ช่องแสดงข้อมูลอ่านอย่างเดียว (Read-only Profile Info) - เรียงคนละบรรทัดตามความต้องการก่อนหน้า */}
+        {/* Read-only Profile Info Sections */}
         <div className="flex flex-col gap-3">
             <div className="flex flex-col">
                 <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-                  Base Voice Profile {selectedVoiceData?.isCustom ? "(Original character from standard library)" : ""}
+                  Base Voice Profile {selectedVoiceData?.isCustom ? "(Neural character base used for generation)" : ""}
                 </label>
                 <div className="bg-black/60 border border-gray-700/50 rounded-lg p-3 text-[11px] text-gray-400 italic leading-relaxed min-h-[44px] flex items-center">
-                    {baseVoiceData?.toneDescription || "No base profile information available."}
+                    {baseVoiceData?.toneDescription || selectedVoiceData?.toneDescription || "No base profile information available."}
                 </div>
             </div>
 
             <div className="flex flex-col">
                 <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1 ${selectedVoiceData?.isCustom ? "text-emerald-500" : "text-gray-500"}`}>
-                  Custom Clone DNA (Extracted character from uploaded sample)
+                  Custom Clone DNA (Instruction prompt extracted from sample)
                 </label>
                 <div className={`bg-black/60 border rounded-lg p-3 text-[11px] leading-relaxed min-h-[44px] flex items-center ${selectedVoiceData?.isCustom ? "border-emerald-900/40 text-emerald-300" : "border-gray-700/50 text-gray-500"}`}>
                     {selectedVoiceData?.isCustom 
-                      ? (selectedVoiceData.toneDescription || "No DNA information captured during analysis.") 
-                      : "Not a custom cloned voice. Original standard model in use."}
+                      ? (selectedVoiceData.toneDescription || "DNA analysis present but empty description.") 
+                      : "Not a custom cloned voice. Original neural model instructions in use."}
                 </div>
             </div>
         </div>
