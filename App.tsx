@@ -14,7 +14,7 @@ import { CopyIcon, LoadingSpinner } from './components/icons';
 const APP_VERSION = "v1.9.25 (Stability Fix)";
 const LAST_UPDATED = "Nov 21, 2025 04:00";
 
-const INITIAL_DEFAULT_SEEDS = [949222, 949225, 949226, 949222, 949225];
+const INITIAL_DEFAULT_SEEDS = [475417, 475418, 475419, 475421, 475422];
 
 const App: React.FC = () => {
   // --- ระบบจัดการ API Key สำหรับใช้งานส่วนตัว ---
