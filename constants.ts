@@ -5,7 +5,7 @@ export const AVAILABLE_VOICES: Voice[] = [
   { 
     name: 'Iapetus (Male, Warm Wisdom)', 
     id: 'Iapetus',
-    toneDescription: 'A melodic and mature male voice with natural warmth. Excellent for storytelling with a peaceful soul and compassionate guidance.'
+    toneDescription: 'male'
   },
   { 
     name: 'Charon (Male, Deep)', 
@@ -15,27 +15,27 @@ export const AVAILABLE_VOICES: Voice[] = [
   { 
     name: 'Enceladus (Male, Smooth)', 
     id: 'Enceladus',
-    toneDescription: 'Warm, friendly, and smooth male voice. Very approachable and pleasant for long-form listening and gentle teaching.'
+    toneDescription: 'male'
   },
   { 
     name: 'Kore (Female)', 
     id: 'Kore',
-    toneDescription: 'Natural, clear, and polite female voice with a neutral tone. High fidelity and versatile for general narration.'
+    toneDescription: 'female'
   },
   { 
     name: 'Zephyr (Female, Soft)', 
     id: 'Zephyr',
-    toneDescription: 'Soft, gentle, and airy female voice. Ideal for calming content, mindfulness, or spiritual narrations.'
+    toneDescription: 'female'
   },
   { 
     name: 'Puck (Male)', 
     id: 'Puck',
-    toneDescription: 'Bright, energetic male voice with high vitality. Excellent for lively dialogues and enthusiastic storytelling.'
+    toneDescription: 'male'
   },
   { 
     name: 'Fenrir (Male, Raspy)', 
     id: 'Fenrir',
-    toneDescription: 'Mature male voice with a slight rasp and unique character. Sounds experienced and sophisticated.'
+    toneDescription: 'male'
   },
 ];
 
