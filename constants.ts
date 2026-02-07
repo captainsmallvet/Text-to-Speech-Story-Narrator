@@ -3,6 +3,11 @@ import type { Voice, TextModel } from './types';
 
 export const AVAILABLE_VOICES: Voice[] = [
   { 
+    name: 'Enceladus (Male, Smooth)', 
+    id: 'Enceladus',
+    toneDescription: 'male'
+  },
+  { 
     name: 'Iapetus (Male, Warm Wisdom)', 
     id: 'Iapetus',
     toneDescription: 'male'
@@ -10,11 +15,6 @@ export const AVAILABLE_VOICES: Voice[] = [
   { 
     name: 'Charon (Male, Deep)', 
     id: 'Charon',
-    toneDescription: 'male'
-  },
-  { 
-    name: 'Enceladus (Male, Smooth)', 
-    id: 'Enceladus',
     toneDescription: 'male'
   },
   { 
@@ -105,6 +105,4 @@ resulting in a refined, clear, and light mind,
 achieving a certain level of ease.
 True giving is giving with sincere goodwill to the recipient,
 without expecting anything in return,
-either directly or indirectly,
-from the recipient or from others.
-The purer the giving, the greater the results.`;
+either directly or indirectly,`;
