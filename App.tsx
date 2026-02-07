@@ -11,10 +11,10 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS, DEFAULT_TONE } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.9.27 (Seed Optimization)";
-const LAST_UPDATED = "Nov 22, 2025 11:30";
+const APP_VERSION = "v1.9.28 (Default Config Update)";
+const LAST_UPDATED = "Nov 22, 2025 12:00";
 
-const INITIAL_DEFAULT_SEEDS = [741319, 629191, 520583, 741327, 629191];
+const INITIAL_DEFAULT_SEEDS = [741319, 441477, 629191, 255038, 22718];
 
 const App: React.FC = () => {
   // --- ระบบจัดการ API Key สำหรับใช้งานส่วนตัว ---
@@ -60,7 +60,7 @@ const App: React.FC = () => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [statusCopySuccess, setStatusCopySuccess] = useState(false);
   const [textModelId, setTextModelId] = useState<string>(TEXT_MODELS[0].id);
-  const [maxCharsPerBatch, setMaxCharsPerBatch] = useState<number>(3000);
+  const [maxCharsPerBatch, setMaxCharsPerBatch] = useState<number>(1900);
   const [interBatchDelay, setInterBatchDelay] = useState<number>(120);
 
   const allVoices = useMemo(() => [...AVAILABLE_VOICES, ...customVoices], [customVoices]);
@@ -105,7 +105,7 @@ const App: React.FC = () => {
     else setScriptText(EXAMPLE_SCRIPT);
     
     if (savedTextModelId) setTextModelId(savedTextModelId);
-    if (savedMaxChars) setMaxCharsPerBatch(parseInt(savedMaxChars) || 3000);
+    if (savedMaxChars) setMaxCharsPerBatch(parseInt(savedMaxChars) || 1900);
     if (savedDelay) setInterBatchDelay(parseInt(savedDelay) || 120);
 
     if (savedCustomVoices) {
