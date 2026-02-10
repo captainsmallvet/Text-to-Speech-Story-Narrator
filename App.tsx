@@ -11,10 +11,10 @@ import type { DialogueLine, SpeakerConfig, Voice, TextModel } from './types';
 import { AVAILABLE_VOICES, EXAMPLE_SCRIPT, SPEEDS, EMOTIONS, TEXT_MODELS, DEFAULT_TONE } from './constants';
 import { CopyIcon, LoadingSpinner } from './components/icons';
 
-const APP_VERSION = "v1.9.30 (Updated Seeds)";
-const LAST_UPDATED = "Nov 22, 2025 14:00";
+const APP_VERSION = "v1.9.31 (Unified Seeds)";
+const LAST_UPDATED = "Nov 22, 2025 15:30";
 
-const INITIAL_DEFAULT_SEEDS = [428057, 88163, 741319, 801420, 344065];
+const INITIAL_DEFAULT_SEEDS = [428057, 428057, 428057, 428057, 428057];
 
 const App: React.FC = () => {
   // --- ระบบจัดการ API Key สำหรับใช้งานส่วนตัว ---
